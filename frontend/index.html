@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distribuidora de Quesos Carolina</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <style>
+        .landing-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--color-celeste) 0%, var(--color-celeste-oscuro) 100%);
+            padding: 20px;
+            text-align: center;
+        }
+
+        .landing-content {
+            background: var(--color-blanco);
+            padding: 60px 40px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--sombra-fuerte);
+            max-width: 600px;
+            width: 100%;
+            animation: slideDown 0.8s ease;
+        }
+
+        .landing-logo {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 30px;
+            background: var(--color-celeste);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--color-blanco);
+            font-size: 60px;
+            font-weight: bold;
+            box-shadow: var(--sombra-media);
+        }
+
+        .landing-content h1 {
+            color: var(--color-celeste);
+            font-size: 36px;
+            margin-bottom: 15px;
+        }
+
+        .landing-content h2 {
+            color: var(--color-texto);
+            font-size: 22px;
+            margin-bottom: 30px;
+            font-weight: normal;
+        }
+
+        .landing-content p {
+            color: var(--color-gris-oscuro);
+            font-size: 16px;
+            line-height: 1.8;
+            margin-bottom: 40px;
+        }
+
+        .landing-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .landing-feature {
+            background: var(--color-gris);
+            padding: 20px;
+            border-radius: var(--border-radius-small);
+            transition: all 0.3s ease;
+        }
+
+        .landing-feature:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--sombra-media);
+        }
+
+        .landing-feature i {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+
+        .landing-feature h3 {
+            color: var(--color-celeste);
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .landing-feature p {
+            font-size: 14px;
+            margin-bottom: 0;
+        }
+
+        .landing-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .landing-buttons .btn {
+            min-width: 200px;
+        }
+
+        .landing-footer {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid var(--color-gris);
+            color: var(--color-gris-oscuro);
+            font-size: 14px;
+        }
+
+        @media (max-width: 576px) {
+            .landing-content {
+                padding: 40px 25px;
+            }
+
+            .landing-content h1 {
+                font-size: 28px;
+            }
+
+            .landing-content h2 {
+                font-size: 18px;
+            }
+
+            .landing-features {
+                grid-template-columns: 1fr;
+            }
+
+            .landing-buttons .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="landing-container">
+        <div class="landing-content">
+            <div class="landing-logo">DC</div>
+            
+            <h1>Distribuidora de Quesos Carolina</h1>
+            <h2>Sistema de Gestión de Pedidos</h2>
+            
+            <p>
+                Sistema integral para la gestión eficiente de pedidos, clientes, productos y devoluciones. 
+                Diseñado específicamente para optimizar las operaciones de distribución en Bolivia.
+            </p>
+
+            <div class="landing-features">
+                <div class="landing-feature">
+                    <i>📦</i>
+                    <h3>Pedidos</h3>
+                    <p>Gestión completa de pedidos con cálculo automático</p>
+                </div>
+                <div class="landing-feature">
+                    <i>👥</i>
+                    <h3>Clientes</h3>
+                    <p>Control de clientes y su historial</p>
+                </div>
+                <div class="landing-feature">
+                    <i>🧀</i>
+                    <h3>Productos</h3>
+                    <p>Inventario y control de stock</p>
+                </div>
+                <div class="landing-feature">
+                    <i>↩️</i>
+                    <h3>Devoluciones</h3>
+                    <p>Seguimiento de devoluciones</p>
+                </div>
+                <div class="landing-feature">
+                    <i>📋</i>
+                    <h3>Reportes</h3>
+                    <p>Resumen diario en PDF</p>
+                </div>
+                <div class="landing-feature">
+                    <i>📱</i>
+                    <h3>Móvil</h3>
+                    <p>Diseño responsive</p>
+                </div>
+            </div>
+
+            <div class="landing-buttons">
+                <a href="login.html" class="btn btn-primary">
+                    Iniciar Sesión
+                </a>
+            </div>
+
+            <div class="landing-footer">
+                <p>
+                    <strong>Distribuidora de Quesos Carolina</strong><br>
+                    La Paz, Bolivia<br>
+                    Sistema desarrollado en 2025
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Verificar si ya está autenticado
+        const token = localStorage.getItem('token');
+        if (token) {
+            window.location.href = 'dashboard.html';
+        }
+    </script>
+</body>
+</html>

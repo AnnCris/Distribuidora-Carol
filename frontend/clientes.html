@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clientes - Distribuidora Carolina</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <button class="menu-toggle" id="menuToggle">☰</button>
+
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">DC</div>
+                <h2>Distribuidora Carolina</h2>
+                <p>Sistema de Pedidos</p>
+            </div>
+
+            <nav>
+                <ul class="sidebar-menu">
+                    <li>
+                        <a href="dashboard.html">
+                            <i>📊</i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="pedidos.html">
+                            <i>📦</i>
+                            <span>Pedidos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="devoluciones.html">
+                            <i>↩️</i>
+                            <span>Devoluciones</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="clientes.html" class="active">
+                            <i>👥</i>
+                            <span>Clientes</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="productos.html">
+                            <i>🧀</i>
+                            <span>Productos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="usuarios.html" id="menuUsuarios">
+                            <i>👤</i>
+                            <span>Usuarios</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="resumen-dia.html">
+                            <i>📋</i>
+                            <span>Resumen del Día</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <div class="user-details">
+                        <h4 id="userName">Usuario</h4>
+                        <p id="userRole">Rol</p>
+                    </div>
+                </div>
+                <button class="btn btn-danger btn-sm" id="btnLogout" style="width: 100%;">
+                    Cerrar Sesión
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="topbar">
+                <h1>Gestión de Clientes</h1>
+                <div class="topbar-actions">
+                    <button class="btn btn-primary" onclick="abrirModalNuevoCliente()">
+                        + Nuevo Cliente
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="table-container mb-20">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div class="form-group">
+                        <label>Buscar</label>
+                        <input 
+                            type="text" 
+                            id="buscar" 
+                            class="form-control" 
+                            placeholder="Nombre, celular..."
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <select id="filtroActivo" class="form-control">
+                            <option value="">Todos</option>
+                            <option value="true" selected>Activos</option>
+                            <option value="false">Inactivos</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Zona</label>
+                        <select id="filtroZona" class="form-control">
+                            <option value="">Todas</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn btn-secondary btn-sm mt-20" onclick="limpiarFiltros()">
+                    Limpiar Filtros
+                </button>
+            </div>
+
+            <!-- Tabla de Clientes -->
+            <div class="table-container">
+                <div id="loadingClientes" class="text-center">
+                    <div class="spinner"></div>
+                    <p>Cargando clientes...</p>
+                </div>
+
+                <div id="tablaClientes" class="hidden">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Celular</th>
+                                <th>Zona</th>
+                                <th>Ciudad</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientesBody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="noClientes" class="text-center hidden">
+                    <p>No se encontraron clientes</p>
+                </div>
+
+                <!-- Paginación -->
+                <div id="paginacion" class="text-center mt-20 hidden">
+                    <button class="btn btn-secondary btn-sm" id="btnAnterior">Anterior</button>
+                    <span id="infoPagina" style="margin: 0 15px;">Página 1 de 1</span>
+                    <button class="btn btn-secondary btn-sm" id="btnSiguiente">Siguiente</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Nuevo/Editar Cliente -->
+    <div id="modalCliente" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="tituloModalCliente">Nuevo Cliente</h2>
+                <span class="close" onclick="cerrarModal('modalCliente')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="formCliente">
+                    <input type="hidden" id="clienteId">
+                    
+                    <div class="form-group">
+                        <label>Nombre *</label>
+                        <input 
+                            type="text" 
+                            id="clienteNombre" 
+                            class="form-control" 
+                            required
+                            placeholder="Nombre del cliente"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label>Celular</label>
+                        <input 
+                            type="text" 
+                            id="clienteCelular" 
+                            class="form-control" 
+                            placeholder="Ej: 71234567"
+                            maxlength="8"
+                            pattern="[67][0-9]{7}"
+                        >
+                        <small style="color: var(--color-gris-oscuro);">Formato: 8 dígitos empezando con 6 o 7</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Dirección</label>
+                        <textarea 
+                            id="clienteDireccion" 
+                            class="form-control" 
+                            rows="2"
+                            placeholder="Dirección del cliente"
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Zona</label>
+                        <input 
+                            type="text" 
+                            id="clienteZona" 
+                            class="form-control" 
+                            placeholder="Ej: Sopocachi, Miraflores"
+                            list="zonasDatalist"
+                        >
+                        <datalist id="zonasDatalist">
+                        </datalist>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ciudad</label>
+                        <input 
+                            type="text" 
+                            id="clienteCiudad" 
+                            class="form-control" 
+                            placeholder="La Paz"
+                            value="La Paz"
+                        >
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal('modalCliente')">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="guardarCliente()">
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ver Cliente -->
+    <div id="modalVerCliente" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="tituloVerCliente">Información del Cliente</h2>
+                <span class="close" onclick="cerrarModal('modalVerCliente')">&times;</span>
+            </div>
+            <div class="modal-body" id="contenidoVerCliente">
+                <div class="spinner"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal('modalVerCliente')">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js?v=2"></script>
+    <script src="js/clientes.js"></script>
+</body>
+</html>

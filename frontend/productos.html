@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Productos - Distribuidora Carolina</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <button class="menu-toggle" id="menuToggle">☰</button>
+
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">DC</div>
+                <h2>Distribuidora Carolina</h2>
+                <p>Sistema de Pedidos</p>
+            </div>
+
+            <nav>
+                <ul class="sidebar-menu">
+                    <li>
+                        <a href="dashboard.html">
+                            <i>📊</i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="pedidos.html">
+                            <i>📦</i>
+                            <span>Pedidos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="devoluciones.html">
+                            <i>↩️</i>
+                            <span>Devoluciones</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="clientes.html">
+                            <i>👥</i>
+                            <span>Clientes</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="productos.html" class="active">
+                            <i>🧀</i>
+                            <span>Productos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="usuarios.html" id="menuUsuarios">
+                            <i>👤</i>
+                            <span>Usuarios</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="resumen-dia.html">
+                            <i>📋</i>
+                            <span>Resumen del Día</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <div class="user-details">
+                        <h4 id="userName">Usuario</h4>
+                        <p id="userRole">Rol</p>
+                    </div>
+                </div>
+                <button class="btn btn-danger btn-sm" id="btnLogout" style="width: 100%;">
+                    Cerrar Sesión
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="topbar">
+                <h1>Gestión de Productos</h1>
+                <div class="topbar-actions">
+                    <button class="btn btn-primary" onclick="abrirModalNuevoProducto()">
+                        + Nuevo Producto
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="table-container mb-20">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div class="form-group">
+                        <label>Buscar</label>
+                        <input 
+                            type="text" 
+                            id="buscar" 
+                            class="form-control" 
+                            placeholder="Código, nombre..."
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <select id="filtroActivo" class="form-control">
+                            <option value="">Todos</option>
+                            <option value="true" selected>Activos</option>
+                            <option value="false">Inactivos</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Stock</label>
+                        <select id="filtroStock" class="form-control">
+                            <option value="">Todos</option>
+                            <option value="bajo">Stock Bajo</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Unidad de Medida</label>
+                        <select id="filtroUnidad" class="form-control">
+                            <option value="">Todas</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn btn-secondary btn-sm mt-20" onclick="limpiarFiltros()">
+                    Limpiar Filtros
+                </button>
+            </div>
+
+            <!-- Tabla de Productos -->
+            <div class="table-container">
+                <div id="loadingProductos" class="text-center">
+                    <div class="spinner"></div>
+                    <p>Cargando productos...</p>
+                </div>
+
+                <div id="tablaProductos" class="hidden">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Nombre</th>
+                                <th>Precio</th>
+                                <th>Stock</th>
+                                <th>Unidad</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productosBody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="noProductos" class="text-center hidden">
+                    <p>No se encontraron productos</p>
+                </div>
+
+                <!-- Paginación -->
+                <div id="paginacion" class="text-center mt-20 hidden">
+                    <button class="btn btn-secondary btn-sm" id="btnAnterior">Anterior</button>
+                    <span id="infoPagina" style="margin: 0 15px;">Página 1 de 1</span>
+                    <button class="btn btn-secondary btn-sm" id="btnSiguiente">Siguiente</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Nuevo/Editar Producto -->
+    <div id="modalProducto" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="tituloModalProducto">Nuevo Producto</h2>
+                <span class="close" onclick="cerrarModal('modalProducto')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="formProducto">
+                    <input type="hidden" id="productoId">
+                    
+                    <div class="form-group">
+                        <label>Código</label>
+                        <input 
+                            type="text" 
+                            id="productoCodigo" 
+                            class="form-control" 
+                            placeholder="Código del producto (opcional)"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nombre *</label>
+                        <input 
+                            type="text" 
+                            id="productoNombre" 
+                            class="form-control" 
+                            required
+                            placeholder="Nombre del producto"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label>Descripción</label>
+                        <textarea 
+                            id="productoDescripcion" 
+                            class="form-control" 
+                            rows="2"
+                            placeholder="Descripción del producto"
+                        ></textarea>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label>Unidad de Medida *</label>
+                            <select id="productoUnidad" class="form-control" required>
+                                <option value="unidad">Unidad</option>
+                                <option value="kg">Kilogramo (kg)</option>
+                                <option value="caja">Caja</option>
+                                <option value="paquete">Paquete</option>
+                                <option value="litro">Litro</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Precio de Venta (Bs.) *</label>
+                            <input 
+                                type="number" 
+                                id="productoPrecio" 
+                                class="form-control" 
+                                required
+                                min="0.01"
+                                step="0.01"
+                                placeholder="0.00"
+                            >
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label>Stock Actual</label>
+                            <input 
+                                type="number" 
+                                id="productoStock" 
+                                class="form-control" 
+                                min="0"
+                                value="0"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label>Stock Mínimo</label>
+                            <input 
+                                type="number" 
+                                id="productoStockMin" 
+                                class="form-control" 
+                                min="0"
+                                value="5"
+                            >
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal('modalProducto')">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="guardarProducto()">
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ajustar Stock -->
+    <div id="modalAjustarStock" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>Ajustar Stock</h2>
+                <span class="close" onclick="cerrarModal('modalAjustarStock')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="stockProductoId">
+                <p id="stockProductoInfo" style="margin-bottom: 15px;"></p>
+
+                <div class="form-group">
+                    <label>Operación</label>
+                    <select id="stockOperacion" class="form-control">
+                        <option value="sumar">Agregar Stock (+)</option>
+                        <option value="restar">Reducir Stock (-)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Cantidad</label>
+                    <input 
+                        type="number" 
+                        id="stockCantidad" 
+                        class="form-control" 
+                        min="1"
+                        placeholder="Cantidad a ajustar"
+                    >
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal('modalAjustarStock')">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="guardarAjusteStock()">
+                    Ajustar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js?v=2"></script>
+    <script src="js/productos.js"></script>
+</body>
+</html>

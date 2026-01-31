@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedidos - Distribuidora Carolina</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <button class="menu-toggle" id="menuToggle">☰</button>
+
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">DC</div>
+                <h2>Distribuidora Carolina</h2>
+                <p>Sistema de Pedidos</p>
+            </div>
+
+            <nav>
+                <ul class="sidebar-menu">
+                    <li>
+                        <a href="dashboard.html">
+                            <i>📊</i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="pedidos.html" class="active">
+                            <i>📦</i>
+                            <span>Pedidos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="devoluciones.html">
+                            <i>↩️</i>
+                            <span>Devoluciones</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="clientes.html">
+                            <i>👥</i>
+                            <span>Clientes</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="productos.html">
+                            <i>🧀</i>
+                            <span>Productos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="usuarios.html" id="menuUsuarios">
+                            <i>👤</i>
+                            <span>Usuarios</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="resumen-dia.html">
+                            <i>📋</i>
+                            <span>Resumen del Día</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <div class="user-details">
+                        <h4 id="userName">Usuario</h4>
+                        <p id="userRole">Rol</p>
+                    </div>
+                </div>
+                <button class="btn btn-danger btn-sm" id="btnLogout" style="width: 100%;">
+                    Cerrar Sesión
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="topbar">
+                <h1>Gestión de Pedidos</h1>
+                <div class="topbar-actions">
+                    <button class="btn btn-primary" onclick="abrirModalNuevoPedido()">
+                        + Nuevo Pedido
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="table-container mb-20">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div class="form-group">
+                        <label>Buscar</label>
+                        <input 
+                            type="text" 
+                            id="buscar" 
+                            class="form-control" 
+                            placeholder="N° pedido o cliente..."
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <select id="filtroEstado" class="form-control">
+                            <option value="">Todos</option>
+                            <option value="pendiente">Pendientes</option>
+                            <option value="entregado">Entregados</option>
+                            <option value="cancelado">Cancelados</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Desde</label>
+                        <input type="date" id="fechaDesde" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Hasta</label>
+                        <input type="date" id="fechaHasta" class="form-control">
+                    </div>
+                </div>
+                <button class="btn btn-secondary btn-sm mt-20" onclick="limpiarFiltros()">
+                    Limpiar Filtros
+                </button>
+            </div>
+
+            <!-- Tabla de Pedidos -->
+            <div class="table-container">
+                <div id="loadingPedidos" class="text-center">
+                    <div class="spinner"></div>
+                    <p>Cargando pedidos...</p>
+                </div>
+
+                <div id="tablaPedidos" class="hidden">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>N° Pedido</th>
+                                <th>Cliente</th>
+                                <th>Fecha</th>
+                                <th>Total</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pedidosBody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="noPedidos" class="text-center hidden">
+                    <p>No se encontraron pedidos</p>
+                </div>
+
+                <!-- Paginación -->
+                <div id="paginacion" class="text-center mt-20 hidden">
+                    <button class="btn btn-secondary btn-sm" id="btnAnterior">Anterior</button>
+                    <span id="infoPagina" style="margin: 0 15px;">Página 1 de 1</span>
+                    <button class="btn btn-secondary btn-sm" id="btnSiguiente">Siguiente</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Nuevo Pedido -->
+    <div id="modalNuevoPedido" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>Nuevo Pedido</h2>
+                <span class="close" onclick="cerrarModal('modalNuevoPedido')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="formNuevoPedido">
+                    <div class="form-group">
+                        <label>Cliente *</label>
+                        <select id="pedidoCliente" class="form-control" required>
+                            <option value="">Seleccione un cliente</option>
+                        </select>
+                    </div>
+
+                    <div id="alertaDevolucionesPendientes" class="alert alert-warning hidden">
+                        ⚠️ Este cliente tiene devoluciones pendientes
+                    </div>
+
+                    <div class="form-group">
+                        <label>Fecha de Entrega</label>
+                        <input type="date" id="pedidoFechaEntrega" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Observaciones</label>
+                        <textarea id="pedidoObservaciones" class="form-control" rows="2"></textarea>
+                    </div>
+
+                    <hr style="margin: 20px 0;">
+
+                    <h3 style="color: var(--color-celeste); margin-bottom: 15px;">Productos</h3>
+
+                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px;">
+                        <div class="form-group">
+                            <label>Producto</label>
+                            <select id="productoSelect" class="form-control">
+                                <option value="">Seleccione producto</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Cantidad</label>
+                            <input type="number" id="productoCantidad" class="form-control" min="0.01" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>Precio</label>
+                            <input type="number" id="productoPrecio" class="form-control" min="0.01" step="0.01" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>&nbsp;</label>
+                            <button type="button" class="btn btn-primary" onclick="agregarProducto()">
+                                Agregar
+                            </button>
+                        </div>
+                    </div>
+
+                    <table style="margin-top: 20px;">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Cantidad</th>
+                                <th>Precio Unit.</th>
+                                <th>Subtotal</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productosBody">
+                            <tr>
+                                <td colspan="5" class="text-center">No hay productos agregados</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div style="text-align: right; margin-top: 20px; padding: 15px; background: var(--color-gris); border-radius: var(--border-radius-small);">
+                        <div style="margin-bottom: 10px;">
+                            <strong>Subtotal:</strong> <span id="pedidoSubtotal">Bs. 0.00</span>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <label style="display: inline; margin-right: 10px;">Descuento:</label>
+                            <input type="number" id="pedidoDescuento" class="form-control" min="0" step="0.01" value="0" style="width: 150px; display: inline-block;" onchange="calcularTotal()">
+                        </div>
+                        <div style="font-size: 20px; color: var(--color-celeste);">
+                            <strong>TOTAL:</strong> <span id="pedidoTotal">Bs. 0.00</span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal('modalNuevoPedido')">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="guardarPedido()">
+                    Guardar Pedido
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ver Pedido -->
+    <div id="modalVerPedido" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2 id="tituloVerPedido">Detalle del Pedido</h2>
+                <span class="close" onclick="cerrarModal('modalVerPedido')">&times;</span>
+            </div>
+            <div class="modal-body" id="contenidoVerPedido">
+                <div class="spinner"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal('modalVerPedido')">
+                    Cerrar
+                </button>
+                <button type="button" class="btn btn-primary" id="btnDescargarPDF">
+                    Descargar PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js?v=2"></script>
+    <script src="js/pedidos.js"></script>
+</body>
+</html>

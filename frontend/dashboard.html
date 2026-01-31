@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Distribuidora Carolina</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <button class="menu-toggle" id="menuToggle">☰</button>
+
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">DC</div>
+                <h2>Distribuidora Carolina</h2>
+                <p>Sistema de Pedidos</p>
+            </div>
+
+            <nav>
+                <ul class="sidebar-menu">
+                    <li>
+                        <a href="dashboard.html" class="active">
+                            <i>📊</i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="pedidos.html">
+                            <i>📦</i>
+                            <span>Pedidos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="devoluciones.html">
+                            <i>↩️</i>
+                            <span>Devoluciones</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="clientes.html">
+                            <i>👥</i>
+                            <span>Clientes</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="productos.html">
+                            <i>🧀</i>
+                            <span>Productos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="usuarios.html" id="menuUsuarios">
+                            <i>👤</i>
+                            <span>Usuarios</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="resumen-dia.html">
+                            <i>📋</i>
+                            <span>Resumen del Día</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <div class="user-details">
+                        <h4 id="userName">Usuario</h4>
+                        <p id="userRole">Rol</p>
+                    </div>
+                </div>
+                <button class="btn btn-danger btn-sm" id="btnLogout" style="width: 100%;">
+                    Cerrar Sesión
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="topbar">
+                <h1>Dashboard</h1>
+                <div class="topbar-actions">
+                    <button class="btn btn-primary btn-sm" onclick="window.location.href='pedidos.html'">
+                        + Nuevo Pedido
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cards de Estadísticas -->
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <p class="card-title">Pedidos Hoy</p>
+                            <h2 class="card-value" id="pedidosHoy">0</h2>
+                        </div>
+                        <div class="card-icon celeste">📦</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <p class="card-title">Pedidos Pendientes</p>
+                            <h2 class="card-value" id="pedidosPendientes">0</h2>
+                        </div>
+                        <div class="card-icon amarillo">⏳</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <p class="card-title">Devoluciones Pendientes</p>
+                            <h2 class="card-value" id="devolucionesPendientes">0</h2>
+                        </div>
+                        <div class="card-icon rojo">↩️</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <p class="card-title">Total Vendido Hoy</p>
+                            <h2 class="card-value" id="totalVendido">Bs. 0.00</h2>
+                        </div>
+                        <div class="card-icon verde">💰</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Últimos Pedidos -->
+            <div class="table-container">
+                <div class="table-header">
+                    <h2>Últimos Pedidos</h2>
+                    <button class="btn btn-primary btn-sm" onclick="window.location.href='pedidos.html'">
+                        Ver Todos
+                    </button>
+                </div>
+
+                <div id="loadingPedidos" class="text-center">
+                    <div class="spinner"></div>
+                    <p>Cargando pedidos...</p>
+                </div>
+
+                <div id="tablaPedidos" class="hidden">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>N° Pedido</th>
+                                <th>Cliente</th>
+                                <th>Fecha</th>
+                                <th>Total</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pedidosBody">
+                            <!-- Se llenará dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="noPedidos" class="text-center hidden">
+                    <p>No hay pedidos recientes</p>
+                </div>
+            </div>
+
+            <!-- Productos con Stock Bajo -->
+            <div class="table-container mt-20">
+                <div class="table-header">
+                    <h2>⚠️ Productos con Stock Bajo</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="window.location.href='productos.html'">
+                        Ver Todos
+                    </button>
+                </div>
+
+                <div id="loadingStock" class="text-center">
+                    <div class="spinner"></div>
+                    <p>Cargando productos...</p>
+                </div>
+
+                <div id="tablaStock" class="hidden">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Stock Actual</th>
+                                <th>Stock Mínimo</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stockBody">
+                            <!-- Se llenará dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="noStock" class="text-center hidden">
+                    <p style="color: var(--color-exito);">✅ Todos los productos tienen stock suficiente</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/app.js?v=2"></script>
+    <script>
+        // Cargar datos del dashboard
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Verificar autenticación
+            if (!verificarAuth()) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Cargar información del usuario
+            cargarInfoUsuario();
+
+            // Cargar estadísticas
+            await cargarEstadisticas();
+
+            // Cargar últimos pedidos
+            await cargarUltimosPedidos();
+
+            // Cargar productos con stock bajo
+            await cargarStockBajo();
+
+            // Menu toggle para móvil
+            document.getElementById('menuToggle').addEventListener('click', () => {
+                document.getElementById('sidebar').classList.toggle('active');
+            });
+        });
+
+        async function cargarEstadisticas() {
+            try {
+                const hoy = new Date().toISOString().split('T')[0];
+
+                // Obtener pedidos del día
+                const resPedidosHoy = await fetchAPI(`/api/pedidos?fecha_desde=${hoy}&fecha_hasta=${hoy}`);
+                if (resPedidosHoy.success) {
+                    document.getElementById('pedidosHoy').textContent = resPedidosHoy.data.total;
+                    
+                    // Calcular total vendido
+                    const totalVendido = resPedidosHoy.data.pedidos
+                        .filter(p => p.estado === 'entregado')
+                        .reduce((sum, p) => sum + parseFloat(p.total), 0);
+                    document.getElementById('totalVendido').textContent = `Bs. ${formatearPrecio(totalVendido)}`;
+                }
+
+                // Obtener pedidos pendientes
+                const resPendientes = await fetchAPI('/api/pedidos?estado=pendiente');
+                if (resPendientes.success) {
+                    document.getElementById('pedidosPendientes').textContent = resPendientes.data.total;
+                }
+
+                // Obtener devoluciones pendientes
+                const resDevoluciones = await fetchAPI('/api/devoluciones/pendientes');
+                if (resDevoluciones.success) {
+                    document.getElementById('devolucionesPendientes').textContent = resDevoluciones.data.total;
+                }
+
+            } catch (error) {
+                console.error('Error al cargar estadísticas:', error);
+            }
+        }
+
+        async function cargarUltimosPedidos() {
+            try {
+                const response = await fetchAPI('/api/pedidos?per_page=5');
+                
+                document.getElementById('loadingPedidos').classList.add('hidden');
+
+                if (response.success && response.data.pedidos.length > 0) {
+                    document.getElementById('tablaPedidos').classList.remove('hidden');
+                    
+                    const tbody = document.getElementById('pedidosBody');
+                    tbody.innerHTML = response.data.pedidos.map(pedido => `
+                        <tr>
+                            <td><strong>${pedido.numero_pedido}</strong></td>
+                            <td>${pedido.cliente_nombre}</td>
+                            <td>${pedido.fecha_pedido}</td>
+                            <td><strong>Bs. ${formatearPrecio(pedido.total)}</strong></td>
+                            <td><span class="badge badge-${pedido.estado}">${pedido.estado.toUpperCase()}</span></td>
+                            <td>
+                                <button class="btn btn-primary btn-sm" onclick="verPedido(${pedido.id})">
+                                    Ver
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    document.getElementById('noPedidos').classList.remove('hidden');
+                }
+
+            } catch (error) {
+                document.getElementById('loadingPedidos').classList.add('hidden');
+                document.getElementById('noPedidos').classList.remove('hidden');
+                console.error('Error al cargar pedidos:', error);
+            }
+        }
+
+        async function cargarStockBajo() {
+            try {
+                const response = await fetchAPI('/api/productos/stock-bajo');
+                
+                document.getElementById('loadingStock').classList.add('hidden');
+
+                if (response.success && response.data.productos.length > 0) {
+                    document.getElementById('tablaStock').classList.remove('hidden');
+                    
+                    const tbody = document.getElementById('stockBody');
+                    tbody.innerHTML = response.data.productos.map(producto => `
+                        <tr>
+                            <td><strong>${producto.nombre}</strong></td>
+                            <td>${producto.stock_actual}</td>
+                            <td>${producto.stock_minimo}</td>
+                            <td>
+                                <span class="badge ${producto.stock_actual === 0 ? 'badge-cancelado' : 'badge-pendiente'}">
+                                    ${producto.stock_actual === 0 ? 'AGOTADO' : 'STOCK BAJO'}
+                                </span>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    document.getElementById('noStock').classList.remove('hidden');
+                }
+
+            } catch (error) {
+                document.getElementById('loadingStock').classList.add('hidden');
+                document.getElementById('noStock').classList.remove('hidden');
+                console.error('Error al cargar stock:', error);
+            }
+        }
+
+        function verPedido(id) {
+            window.location.href = `pedidos.html?ver=${id}`;
+        }
+    </script>
+</body>
+</html>

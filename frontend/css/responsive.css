@@ -1,0 +1,136 @@
+/* Responsive Design */
+
+/* Tablet */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 220px;
+    }
+    
+    .main-content {
+        margin-left: 220px;
+    }
+    
+    .cards-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+    
+    .topbar {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .topbar-actions {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Mobile */
+@media (max-width: 576px) {
+    .sidebar {
+        width: 100%;
+        position: fixed;
+        left: -100%;
+        transition: left 0.3s ease;
+        z-index: 2000;
+    }
+    
+    .sidebar.active {
+        left: 0;
+    }
+    
+    .main-content {
+        margin-left: 0;
+        padding: 15px;
+    }
+    
+    .cards-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .login-box {
+        padding: 30px 20px;
+    }
+    
+    .table-container {
+        padding: 15px;
+    }
+    
+    table {
+        font-size: 12px;
+    }
+    
+    thead th,
+    tbody td {
+        padding: 8px;
+    }
+    
+    .search-box {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .search-box input {
+        width: 100%;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 10% auto;
+    }
+    
+    .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .modal-footer {
+        flex-direction: column;
+    }
+}
+
+/* Botón menú móvil */
+.menu-toggle {
+    display: none;
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 2001;
+    background: var(--color-celeste);
+    color: var(--color-blanco);
+    border: none;
+    padding: 10px 15px;
+    border-radius: var(--border-radius-small);
+    cursor: pointer;
+    box-shadow: var(--sombra-media);
+}
+
+@media (max-width: 576px) {
+    .menu-toggle {
+        display: block;
+    }
+    
+    .topbar {
+        margin-top: 60px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .sidebar,
+    .topbar-actions,
+    .btn,
+    .menu-toggle {
+        display: none;
+    }
+    
+    .main-content {
+        margin-left: 0;
+    }
+    
+    .card,
+    .table-container {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+}

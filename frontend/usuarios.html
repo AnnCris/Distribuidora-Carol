@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Usuarios - Distribuidora Carolina</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <button class="menu-toggle" id="menuToggle">☰</button>
+
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">DC</div>
+                <h2>Distribuidora Carolina</h2>
+                <p>Sistema de Pedidos</p>
+            </div>
+
+            <nav>
+                <ul class="sidebar-menu">
+                    <li>
+                        <a href="dashboard.html">
+                            <i>📊</i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="pedidos.html">
+                            <i>📦</i>
+                            <span>Pedidos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="devoluciones.html">
+                            <i>↩️</i>
+                            <span>Devoluciones</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="clientes.html">
+                            <i>👥</i>
+                            <span>Clientes</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="productos.html">
+                            <i>🧀</i>
+                            <span>Productos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="usuarios.html" class="active" id="menuUsuarios">
+                            <i>👤</i>
+                            <span>Usuarios</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="resumen-dia.html">
+                            <i>📋</i>
+                            <span>Resumen del Día</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <div class="user-details">
+                        <h4 id="userName">Usuario</h4>
+                        <p id="userRole">Rol</p>
+                    </div>
+                </div>
+                <button class="btn btn-danger btn-sm" id="btnLogout" style="width: 100%;">
+                    Cerrar Sesión
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="topbar">
+                <h1>Gestión de Usuarios</h1>
+                <div class="topbar-actions">
+                    <button class="btn btn-primary" onclick="abrirModalNuevoUsuario()">
+                        + Nuevo Usuario
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabla de Usuarios -->
+            <div class="table-container">
+                <div id="loadingUsuarios" class="text-center">
+                    <div class="spinner"></div>
+                    <p>Cargando usuarios...</p>
+                </div>
+
+                <div id="tablaUsuarios" class="hidden">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nombre Completo</th>
+                                <th>Usuario</th>
+                                <th>Rol</th>
+                                <th>Último Acceso</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usuariosBody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="noUsuarios" class="text-center hidden">
+                    <p>No hay usuarios registrados</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Nuevo/Editar Usuario -->
+    <div id="modalUsuario" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="tituloModalUsuario">Nuevo Usuario</h2>
+                <span class="close" onclick="cerrarModal('modalUsuario')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="formUsuario">
+                    <input type="hidden" id="usuarioId">
+                    
+                    <div class="form-group">
+                        <label>Nombre Completo *</label>
+                        <input 
+                            type="text" 
+                            id="usuarioNombreCompleto" 
+                            class="form-control" 
+                            required
+                            placeholder="Nombre completo del usuario"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label>Usuario (Login) *</label>
+                        <input 
+                            type="text" 
+                            id="usuarioNombre" 
+                            class="form-control" 
+                            required
+                            placeholder="Nombre de usuario para login"
+                        >
+                    </div>
+
+                    <div class="form-group" id="grupoPassword">
+                        <label>Contraseña *</label>
+                        <input 
+                            type="password" 
+                            id="usuarioPassword" 
+                            class="form-control" 
+                            placeholder="Mínimo 6 caracteres"
+                        >
+                        <small style="color: var(--color-gris-oscuro);">Mínimo 6 caracteres</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Rol *</label>
+                        <select id="usuarioRol" class="form-control" required>
+                            <option value="vendedor">Vendedor</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal('modalUsuario')">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="guardarUsuario()">
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js?v=2"></script>
+    <script src="js/usuarios.js"></script>
+</body>
+</html>

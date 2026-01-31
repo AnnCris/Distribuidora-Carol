@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resumen del Día - Distribuidora Carolina</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <button class="menu-toggle" id="menuToggle">☰</button>
+
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">DC</div>
+                <h2>Distribuidora Carolina</h2>
+                <p>Sistema de Pedidos</p>
+            </div>
+
+            <nav>
+                <ul class="sidebar-menu">
+                    <li>
+                        <a href="dashboard.html">
+                            <i>📊</i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="pedidos.html">
+                            <i>📦</i>
+                            <span>Pedidos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="devoluciones.html">
+                            <i>↩️</i>
+                            <span>Devoluciones</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="clientes.html">
+                            <i>👥</i>
+                            <span>Clientes</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="productos.html">
+                            <i>🧀</i>
+                            <span>Productos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="usuarios.html" id="menuUsuarios">
+                            <i>👤</i>
+                            <span>Usuarios</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="resumen-dia.html" class="active">
+                            <i>📋</i>
+                            <span>Resumen del Día</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <div class="user-details">
+                        <h4 id="userName">Usuario</h4>
+                        <p id="userRole">Rol</p>
+                    </div>
+                </div>
+                <button class="btn btn-danger btn-sm" id="btnLogout" style="width: 100%;">
+                    Cerrar Sesión
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="topbar">
+                <h1>Resumen de Pedidos del Día</h1>
+                <div class="topbar-actions">
+                    <button class="btn btn-primary" onclick="descargarPDFResumen()" id="btnDescargarResumen">
+                        📄 Descargar PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Selector de Fecha -->
+            <div class="table-container mb-20">
+                <div style="display: flex; gap: 15px; align-items: end;">
+                    <div class="form-group" style="flex: 1; max-width: 300px;">
+                        <label>Seleccionar Fecha</label>
+                        <input type="date" id="fechaResumen" class="form-control">
+                    </div>
+                    <button class="btn btn-primary" onclick="cargarResumen()">
+                        Cargar Resumen
+                    </button>
+                    <button class="btn btn-secondary" onclick="cargarHoy()">
+                        Hoy
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tarjetas de Resumen -->
+            <div class="cards-grid mb-20">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <p class="card-title">Total de Pedidos</p>
+                            <h2 class="card-value" id="totalPedidos">0</h2>
+                        </div>
+                        <div class="card-icon celeste">📦</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <p class="card-title">Clientes Atendidos</p>
+                            <h2 class="card-value" id="totalClientes">0</h2>
+                        </div>
+                        <div class="card-icon verde">👥</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <p class="card-title">Total General</p>
+                            <h2 class="card-value" id="totalGeneral">Bs. 0.00</h2>
+                        </div>
+                        <div class="card-icon amarillo">💰</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resumen por Cliente -->
+            <div class="table-container">
+                <div class="table-header">
+                    <h2>Resumen por Cliente</h2>
+                    <span id="fechaSeleccionada" style="color: var(--color-gris-oscuro);"></span>
+                </div>
+
+                <div id="loadingResumen" class="text-center">
+                    <div class="spinner"></div>
+                    <p>Cargando resumen...</p>
+                </div>
+
+                <div id="contenidoResumen" class="hidden">
+                    <!-- Se llenará dinámicamente -->
+                </div>
+
+                <div id="noResumen" class="text-center hidden">
+                    <p>No hay pedidos para la fecha seleccionada</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/app.js?v=2"></script>
+    <script src="js/resumen-dia.js"></script>
+</body>
+</html>
