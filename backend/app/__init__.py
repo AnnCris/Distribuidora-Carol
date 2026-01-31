@@ -1,60 +1,61 @@
-from flask import Flask, jsonify
+from flask import Flask, send_from_directory
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager
 from app.config import Config
 from app.database import db
+from flask_session import Session
+import os
 
 def create_app():
-    """Factory para crear la aplicación Flask"""
-    
     app = Flask(__name__)
     app.config.from_object(Config)
     
-    # CORS - Ultra simple
-    CORS(app)
-    
-    # Deshabilitar strict_slashes
-    app.url_map.strict_slashes = False
-    
-    # JWT
-    jwt = JWTManager(app)
-    
-    # Base de datos
+    # Inicializar base de datos
     db.init_app(app)
     
-    with app.app_context():
-        db.create_all()
+    # Inicializar sesiones
+    Session(app)
     
-    # Registrar blueprints
+    # Configurar CORS con soporte de credenciales
+    CORS(app, 
+         origins=Config.CORS_ORIGINS,
+         supports_credentials=True,
+         allow_headers=['Content-Type', 'Authorization'],
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
+    
+    # ⚠️ IMPORTANTE: Registrar blueprints ANTES de la ruta catch-all
     from app.routes.auth import auth_bp
-    from app.routes.usuarios import usuarios_bp
     from app.routes.clientes import clientes_bp
     from app.routes.productos import productos_bp
     from app.routes.pedidos import pedidos_bp
     from app.routes.devoluciones import devoluciones_bp
+    from app.routes.usuarios import usuarios_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    app.register_blueprint(usuarios_bp, url_prefix='/api/usuarios')
     app.register_blueprint(clientes_bp, url_prefix='/api/clientes')
     app.register_blueprint(productos_bp, url_prefix='/api/productos')
     app.register_blueprint(pedidos_bp, url_prefix='/api/pedidos')
     app.register_blueprint(devoluciones_bp, url_prefix='/api/devoluciones')
+    app.register_blueprint(usuarios_bp, url_prefix='/api/usuarios')
     
-    # Manejadores JWT - NO redirigir automáticamente
-    @jwt.expired_token_loader
-    def expired_token_callback(jwt_header, jwt_payload):
-        return jsonify({'error': 'Token expirado'}), 401
+    # Servir archivos estáticos del frontend (DESPUÉS de las rutas API)
+    frontend_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'frontend')
     
-    @jwt.invalid_token_loader
-    def invalid_token_callback(error):
-        return jsonify({'error': 'Token inválido'}), 401
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def serve(path):
+        # Si la ruta empieza con 'api/', no servir archivos estáticos
+        if path.startswith('api/'):
+            return {'error': 'Ruta API no encontrada'}, 404
+        
+        # Servir archivo estático si existe
+        if path != "" and os.path.exists(os.path.join(frontend_folder, path)):
+            return send_from_directory(frontend_folder, path)
+        
+        # Por defecto servir index.html
+        return send_from_directory(frontend_folder, 'index.html')
     
-    @jwt.unauthorized_loader
-    def missing_token_callback(error):
-        return jsonify({'error': 'No autorizado'}), 401
-    
-    @app.route('/api/health')
-    def health():
-        return jsonify({'status': 'ok'}), 200
+    print("\n" + "="*60)
+    print("✅ SERVIDOR INICIADO CORRECTAMENTE")
+    print("="*60)
     
     return app

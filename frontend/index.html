@@ -13,51 +13,62 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background: linear-gradient(135deg, var(--color-celeste) 0%, var(--color-celeste-oscuro) 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
             padding: 20px;
             text-align: center;
         }
 
         .landing-content {
-            background: var(--color-blanco);
+            background: white;
             padding: 60px 40px;
-            border-radius: var(--border-radius);
-            box-shadow: var(--sombra-fuerte);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             max-width: 600px;
             width: 100%;
             animation: slideDown 0.8s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .landing-logo {
             width: 120px;
             height: 120px;
             margin: 0 auto 30px;
-            background: var(--color-celeste);
+            background: #3b82f6;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: var(--color-blanco);
+            color: white;
             font-size: 60px;
             font-weight: bold;
-            box-shadow: var(--sombra-media);
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
         }
 
         .landing-content h1 {
-            color: var(--color-celeste);
+            color: #3b82f6;
             font-size: 36px;
             margin-bottom: 15px;
         }
 
         .landing-content h2 {
-            color: var(--color-texto);
+            color: #333;
             font-size: 22px;
             margin-bottom: 30px;
             font-weight: normal;
         }
 
         .landing-content p {
-            color: var(--color-gris-oscuro);
+            color: #666;
             font-size: 16px;
             line-height: 1.8;
             margin-bottom: 40px;
@@ -71,15 +82,15 @@
         }
 
         .landing-feature {
-            background: var(--color-gris);
+            background: #f3f4f6;
             padding: 20px;
-            border-radius: var(--border-radius-small);
+            border-radius: 10px;
             transition: all 0.3s ease;
         }
 
         .landing-feature:hover {
             transform: translateY(-5px);
-            box-shadow: var(--sombra-media);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
 
         .landing-feature i {
@@ -88,7 +99,7 @@
         }
 
         .landing-feature h3 {
-            color: var(--color-celeste);
+            color: #3b82f6;
             font-size: 16px;
             margin-bottom: 5px;
         }
@@ -107,13 +118,29 @@
 
         .landing-buttons .btn {
             min-width: 200px;
+            padding: 15px 30px;
+            font-size: 16px;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
         }
 
         .landing-footer {
             margin-top: 40px;
             padding-top: 30px;
-            border-top: 1px solid var(--color-gris);
-            color: var(--color-gris-oscuro);
+            border-top: 1px solid #e5e7eb;
+            color: #666;
             font-size: 14px;
         }
 
@@ -157,32 +184,32 @@
                 <div class="landing-feature">
                     <i>📦</i>
                     <h3>Pedidos</h3>
-                    <p>Gestión completa de pedidos con cálculo automático</p>
+                    <p>Gestión completa de pedidos</p>
                 </div>
                 <div class="landing-feature">
                     <i>👥</i>
                     <h3>Clientes</h3>
-                    <p>Control de clientes y su historial</p>
+                    <p>Control de clientes</p>
                 </div>
                 <div class="landing-feature">
                     <i>🧀</i>
                     <h3>Productos</h3>
-                    <p>Inventario y control de stock</p>
+                    <p>Control de stock</p>
                 </div>
                 <div class="landing-feature">
                     <i>↩️</i>
                     <h3>Devoluciones</h3>
-                    <p>Seguimiento de devoluciones</p>
+                    <p>Seguimiento completo</p>
                 </div>
                 <div class="landing-feature">
                     <i>📋</i>
                     <h3>Reportes</h3>
-                    <p>Resumen diario en PDF</p>
+                    <p>Resumen diario PDF</p>
                 </div>
                 <div class="landing-feature">
                     <i>📱</i>
-                    <h3>Móvil</h3>
-                    <p>Diseño responsive</p>
+                    <h3>Responsive</h3>
+                    <p>Diseño adaptable</p>
                 </div>
             </div>
 
@@ -196,18 +223,27 @@
                 <p>
                     <strong>Distribuidora de Quesos Carolina</strong><br>
                     La Paz, Bolivia<br>
-                    Sistema desarrollado en 2025
+                    Sistema desarrollado en 2026
                 </p>
             </div>
         </div>
     </div>
 
+    <script src="js/app.js"></script>
+    <script src="js/auth.js"></script>
     <script>
-        // Verificar si ya está autenticado
-        const token = localStorage.getItem('token');
-        if (token) {
-            window.location.href = 'dashboard.html';
-        }
+        // Si ya está autenticado, redirigir al dashboard
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetchAPI('/api/auth/validar');
+                if (response.success && response.data.valido) {
+                    window.location.href = 'dashboard.html';
+                }
+            } catch (error) {
+                // No autenticado, mostrar landing page
+                console.log('Usuario no autenticado');
+            }
+        });
     </script>
 </body>
 </html>

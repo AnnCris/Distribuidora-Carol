@@ -1,123 +1,127 @@
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from app.database import db, get_bolivia_time
+from flask import Blueprint, request, jsonify, session
+from app.database import db
 from app.models.usuario import Usuario
-from app.utils.validators import validate_required_fields
 
 auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/login', methods=['POST'])
-@validate_required_fields(['usuario', 'password'])
 def login():
-    """Iniciar sesión y obtener token JWT"""
+    """Login de usuario"""
     try:
         data = request.get_json()
-        usuario = data.get('usuario')
+        
+        print(f"📥 Datos recibidos: {data}")  # Debug
+        
+        if not data:
+            return jsonify({'error': 'No se recibieron datos'}), 400
+        
+        email = data.get('email')
         password = data.get('password')
         
+        print(f"👤 Email: {email}, Password: {'***' if password else 'None'}")  # Debug
+        
+        if not email or not password:
+            return jsonify({'error': 'Complete todos los campos'}), 400
+        
         # Buscar usuario
-        user = Usuario.query.filter_by(usuario=usuario).first()
+        usuario = Usuario.query.filter_by(email=email).first()
         
-        if not user:
-            return jsonify({'error': 'Usuario no encontrado'}), 404
+        if not usuario:
+            print(f"❌ Usuario no encontrado: {email}")
+            return jsonify({'error': 'Credenciales incorrectas'}), 401
         
-        # Verificar si está activo
-        if not user.activo:
-            return jsonify({'error': 'Usuario desactivado. Contacte al administrador'}), 403
+        if not usuario.activo:
+            print(f"❌ Usuario inactivo: {email}")
+            return jsonify({'error': 'Usuario desactivado'}), 401
         
         # Verificar contraseña
-        if not user.check_password(password):
-            return jsonify({'error': 'Contraseña incorrecta'}), 401
+        if not usuario.check_password(password):
+            print(f"❌ Contraseña incorrecta para: {email}")
+            return jsonify({'error': 'Credenciales incorrectas'}), 401
         
-        # Actualizar último acceso
-        user.ultimo_acceso = get_bolivia_time()
-        db.session.commit()
+        # Guardar en sesión
+        session.clear()
+        session['user_id'] = usuario.id
+        session['user_name'] = usuario.nombre
+        session['user_role'] = usuario.rol
+        session.permanent = True
         
-        # Crear token JWT
-        access_token = create_access_token(identity=user.id)
+        print(f"✅ Login exitoso: {usuario.email}")
+        print(f"📝 Sesión creada: {dict(session)}")
         
         return jsonify({
-            'mensaje': 'Inicio de sesión exitoso',
-            'token': access_token,
-            'usuario': user.to_dict()
+            'mensaje': 'Login exitoso',
+            'usuario': usuario.to_dict()
         }), 200
         
     except Exception as e:
-        return jsonify({'error': f'Error al iniciar sesión: {str(e)}'}), 500
+        print(f"❌ Error en login: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Error en el servidor: {str(e)}'}), 500
 
 
-@auth_bp.route('/perfil', methods=['GET'])
-@jwt_required()
-def obtener_perfil():
-    """Obtener información del usuario autenticado"""
+@auth_bp.route('/logout', methods=['POST'])
+def logout():
+    """Logout de usuario"""
     try:
-        user_id = get_jwt_identity()
-        user = Usuario.query.get(user_id)
-        
-        if not user:
-            return jsonify({'error': 'Usuario no encontrado'}), 404
-        
-        return jsonify({
-            'usuario': user.to_dict()
-        }), 200
-        
+        print(f"🚪 Cerrando sesión: {session.get('user_id')}")
+        session.clear()
+        return jsonify({'mensaje': 'Sesión cerrada exitosamente'}), 200
     except Exception as e:
-        return jsonify({'error': f'Error al obtener perfil: {str(e)}'}), 500
+        print(f"❌ Error en logout: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 
-@auth_bp.route('/cambiar-password', methods=['PUT'])
-@jwt_required()
-@validate_required_fields(['password_actual', 'password_nueva'])
-def cambiar_password():
-    """Cambiar contraseña del usuario autenticado"""
+@auth_bp.route('/validar', methods=['GET'])
+def validar_sesion():
+    """Validar si la sesión está activa"""
     try:
-        user_id = get_jwt_identity()
-        data = request.get_json()
+        user_id = session.get('user_id')
         
-        password_actual = data.get('password_actual')
-        password_nueva = data.get('password_nueva')
+        print(f"🔍 Validando sesión: {dict(session)}")
         
-        # Validar longitud de nueva contraseña
-        if len(password_nueva) < 6:
-            return jsonify({'error': 'La contraseña debe tener al menos 6 caracteres'}), 400
+        if not user_id:
+            print("❌ No hay user_id en sesión")
+            return jsonify({'valido': False}), 200
         
-        user = Usuario.query.get(user_id)
+        usuario = Usuario.query.get(user_id)
         
-        if not user:
-            return jsonify({'error': 'Usuario no encontrado'}), 404
+        if not usuario or not usuario.activo:
+            print(f"❌ Usuario no encontrado o inactivo: {user_id}")
+            session.clear()
+            return jsonify({'valido': False}), 200
         
-        # Verificar contraseña actual
-        if not user.check_password(password_actual):
-            return jsonify({'error': 'Contraseña actual incorrecta'}), 401
-        
-        # Cambiar contraseña
-        user.set_password(password_nueva)
-        db.session.commit()
-        
-        return jsonify({
-            'mensaje': 'Contraseña cambiada exitosamente'
-        }), 200
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': f'Error al cambiar contraseña: {str(e)}'}), 500
-
-
-@auth_bp.route('/validar-token', methods=['GET'])
-@jwt_required()
-def validar_token():
-    """Validar si el token JWT es válido"""
-    try:
-        user_id = get_jwt_identity()
-        user = Usuario.query.get(user_id)
-        
-        if not user or not user.activo:
-            return jsonify({'valido': False, 'error': 'Token inválido'}), 401
+        print(f"✅ Sesión válida para: {usuario.email}")
         
         return jsonify({
             'valido': True,
-            'usuario': user.to_dict()
+            'usuario': usuario.to_dict()
         }), 200
         
     except Exception as e:
-        return jsonify({'valido': False, 'error': str(e)}), 401
+        print(f"❌ Error validando sesión: {str(e)}")
+        return jsonify({'valido': False}), 200
+
+
+@auth_bp.route('/perfil', methods=['GET'])
+def obtener_perfil():
+    """Obtener perfil del usuario actual"""
+    try:
+        user_id = session.get('user_id')
+        
+        if not user_id:
+            return jsonify({'error': 'No autenticado'}), 401
+        
+        usuario = Usuario.query.get(user_id)
+        
+        if not usuario:
+            session.clear()
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        return jsonify({
+            'usuario': usuario.to_dict()
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

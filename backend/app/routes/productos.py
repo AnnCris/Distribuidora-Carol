@@ -1,14 +1,13 @@
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+from flask import Blueprint, request, jsonify, session
 from app.database import db
 from app.models.producto import Producto
 from app.models.pedido import DetallePedido
-from app.utils.validators import validate_required_fields, validate_precio, validate_cantidad
+from app.utils.decorators import login_required
 
 productos_bp = Blueprint('productos', __name__)
 
 @productos_bp.route('/', methods=['GET'])
-@jwt_required()
+@login_required
 def listar_productos():
     """Listar todos los productos"""
     try:
@@ -62,7 +61,7 @@ def listar_productos():
 
 
 @productos_bp.route('/todos', methods=['GET'])
-@jwt_required()
+@login_required
 def listar_todos_productos():
     """Listar todos los productos activos sin paginación (para selectores)"""
     try:
@@ -85,7 +84,7 @@ def listar_todos_productos():
 
 
 @productos_bp.route('/<int:id>', methods=['GET'])
-@jwt_required()
+@login_required
 def obtener_producto(id):
     """Obtener un producto por ID"""
     try:
@@ -113,16 +112,22 @@ def obtener_producto(id):
 
 
 @productos_bp.route('/', methods=['POST'])
-@jwt_required()
-@validate_required_fields(['nombre', 'precio_venta'])
+@login_required
 def crear_producto():
     """Crear un nuevo producto"""
     try:
         data = request.get_json()
         
+        if not data or not data.get('nombre') or not data.get('precio_venta'):
+            return jsonify({'error': 'Nombre y precio son requeridos'}), 400
+        
         # Validar precio
-        if not validate_precio(data['precio_venta']):
-            return jsonify({'error': 'El precio debe ser mayor a 0'}), 400
+        try:
+            precio = float(data['precio_venta'])
+            if precio <= 0:
+                return jsonify({'error': 'El precio debe ser mayor a 0'}), 400
+        except:
+            return jsonify({'error': 'Precio inválido'}), 400
         
         # Validar código único si se proporciona
         if data.get('codigo'):
@@ -174,7 +179,7 @@ def crear_producto():
 
 
 @productos_bp.route('/<int:id>', methods=['PUT'])
-@jwt_required()
+@login_required
 def actualizar_producto(id):
     """Actualizar un producto"""
     try:
@@ -211,9 +216,13 @@ def actualizar_producto(id):
         
         # Validar precio si se actualiza
         if 'precio_venta' in data:
-            if not validate_precio(data['precio_venta']):
-                return jsonify({'error': 'El precio debe ser mayor a 0'}), 400
-            producto.precio_venta = data['precio_venta']
+            try:
+                precio = float(data['precio_venta'])
+                if precio <= 0:
+                    return jsonify({'error': 'El precio debe ser mayor a 0'}), 400
+                producto.precio_venta = precio
+            except:
+                return jsonify({'error': 'Precio inválido'}), 400
         
         # Validar unidad de medida si se actualiza
         if 'unidad_medida' in data:
@@ -248,8 +257,7 @@ def actualizar_producto(id):
 
 
 @productos_bp.route('/<int:id>/ajustar-stock', methods=['PATCH'])
-@jwt_required()
-@validate_required_fields(['cantidad', 'operacion'])
+@login_required
 def ajustar_stock(id):
     """Ajustar stock de un producto (sumar o restar)"""
     try:
@@ -259,12 +267,18 @@ def ajustar_stock(id):
             return jsonify({'error': 'Producto no encontrado'}), 404
         
         data = request.get_json()
-        cantidad = data['cantidad']
-        operacion = data['operacion']
         
-        # Validar cantidad
-        if not validate_cantidad(cantidad):
-            return jsonify({'error': 'La cantidad debe ser mayor a 0'}), 400
+        if not data or not data.get('cantidad') or not data.get('operacion'):
+            return jsonify({'error': 'Cantidad y operación son requeridas'}), 400
+        
+        try:
+            cantidad = int(data['cantidad'])
+            if cantidad <= 0:
+                return jsonify({'error': 'La cantidad debe ser mayor a 0'}), 400
+        except:
+            return jsonify({'error': 'Cantidad inválida'}), 400
+        
+        operacion = data['operacion']
         
         # Validar operación
         if operacion not in ['sumar', 'restar']:
@@ -274,15 +288,15 @@ def ajustar_stock(id):
         stock_anterior = producto.stock_actual
         
         if operacion == 'sumar':
-            producto.stock_actual += int(cantidad)
+            producto.stock_actual += cantidad
         else:  # restar
-            if producto.stock_actual < int(cantidad):
+            if producto.stock_actual < cantidad:
                 return jsonify({
                     'error': 'Stock insuficiente',
                     'stock_actual': producto.stock_actual,
-                    'cantidad_solicitada': int(cantidad)
+                    'cantidad_solicitada': cantidad
                 }), 400
-            producto.stock_actual -= int(cantidad)
+            producto.stock_actual -= cantidad
         
         db.session.commit()
         
@@ -291,7 +305,7 @@ def ajustar_stock(id):
             'producto': producto.to_dict(),
             'stock_anterior': stock_anterior,
             'stock_nuevo': producto.stock_actual,
-            'diferencia': int(cantidad)
+            'diferencia': cantidad
         }), 200
         
     except Exception as e:
@@ -300,7 +314,7 @@ def ajustar_stock(id):
 
 
 @productos_bp.route('/<int:id>/toggle-activo', methods=['PATCH'])
-@jwt_required()
+@login_required
 def toggle_activo_producto(id):
     """Activar/Desactivar un producto"""
     try:
@@ -325,7 +339,7 @@ def toggle_activo_producto(id):
 
 
 @productos_bp.route('/<int:id>', methods=['DELETE'])
-@jwt_required()
+@login_required
 def eliminar_producto(id):
     """Eliminar un producto"""
     try:
@@ -355,7 +369,7 @@ def eliminar_producto(id):
 
 
 @productos_bp.route('/stock-bajo', methods=['GET'])
-@jwt_required()
+@login_required
 def productos_stock_bajo():
     """Listar productos con stock bajo o agotado"""
     try:
@@ -377,7 +391,7 @@ def productos_stock_bajo():
 
 
 @productos_bp.route('/unidades-medida', methods=['GET'])
-@jwt_required()
+@login_required
 def listar_unidades_medida():
     """Listar unidades de medida disponibles"""
     try:
@@ -392,7 +406,7 @@ def listar_unidades_medida():
 
 
 @productos_bp.route('/mas-vendidos', methods=['GET'])
-@jwt_required()
+@login_required
 def productos_mas_vendidos():
     """Listar los productos más vendidos"""
     try:
@@ -419,3 +433,24 @@ def productos_mas_vendidos():
         
     except Exception as e:
         return jsonify({'error': f'Error al obtener productos más vendidos: {str(e)}'}), 500
+    
+
+@productos_bp.route('/estadisticas', methods=['GET'])
+@login_required
+def estadisticas_productos():
+    """Obtener estadísticas de productos"""
+    try:
+        total_productos = Producto.query.count()
+        productos_activos = Producto.query.filter_by(activo=True).count()
+        productos_stock_bajo = Producto.query.filter(
+            Producto.stock_actual <= Producto.stock_minimo
+        ).count()
+        
+        return jsonify({
+            'total_productos': total_productos,
+            'activos': productos_activos,
+            'stock_bajo': productos_stock_bajo
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Error al obtener estadísticas: {str(e)}'}), 500

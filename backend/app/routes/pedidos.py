@@ -1,5 +1,4 @@
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask import Blueprint, request, jsonify, session, send_file
 from datetime import datetime, date
 from app.database import db, get_bolivia_time
 from app.models.pedido import Pedido, DetallePedido
@@ -7,12 +6,13 @@ from app.models.cliente import Cliente
 from app.models.producto import Producto
 from app.models.usuario import Usuario
 from app.models.devolucion import Devolucion
-from app.utils.validators import validate_required_fields, validate_cantidad, validate_precio
+from app.utils.decorators import login_required
+from app.utils.pdf_generator import PDFGenerator
 
 pedidos_bp = Blueprint('pedidos', __name__)
 
 @pedidos_bp.route('/', methods=['GET'])
-@jwt_required()
+@login_required
 def listar_pedidos():
     """Listar todos los pedidos con filtros"""
     try:
@@ -46,7 +46,6 @@ def listar_pedidos():
         if fecha_hasta:
             try:
                 fecha_hasta_obj = datetime.strptime(fecha_hasta, '%Y-%m-%d')
-                # Agregar 23:59:59 para incluir todo el día
                 fecha_hasta_obj = fecha_hasta_obj.replace(hour=23, minute=59, second=59)
                 query = query.filter(Pedido.fecha_pedido <= fecha_hasta_obj)
             except ValueError:
@@ -79,7 +78,7 @@ def listar_pedidos():
 
 
 @pedidos_bp.route('/<int:id>', methods=['GET'])
-@jwt_required()
+@login_required
 def obtener_pedido(id):
     """Obtener un pedido por ID con todos sus detalles"""
     try:
@@ -104,13 +103,15 @@ def obtener_pedido(id):
 
 
 @pedidos_bp.route('/', methods=['POST'])
-@jwt_required()
-@validate_required_fields(['cliente_id', 'detalles'])
+@login_required
 def crear_pedido():
     """Crear un nuevo pedido con cálculo automático"""
     try:
-        user_id = get_jwt_identity()
+        user_id = session.get('user_id')
         data = request.get_json()
+        
+        if not data or not data.get('cliente_id') or not data.get('detalles'):
+            return jsonify({'error': 'Cliente y detalles son requeridos'}), 400
         
         # Validar que el cliente existe
         cliente = Cliente.query.get(data['cliente_id'])
@@ -135,11 +136,11 @@ def crear_pedido():
             descuento=data.get('descuento', 0),
             observaciones=data.get('observaciones'),
             fecha_entrega=datetime.strptime(data['fecha_entrega'], '%Y-%m-%d').date() if data.get('fecha_entrega') else None,
-            total=0  # Se calculará después
+            total=0
         )
         
         db.session.add(nuevo_pedido)
-        db.session.flush()  # Para obtener el ID del pedido
+        db.session.flush()
         
         # Agregar detalles y calcular totales
         for detalle_data in data['detalles']:
@@ -154,7 +155,11 @@ def crear_pedido():
                 return jsonify({'error': f'El producto {producto.nombre} está desactivado'}), 400
             
             # Validar cantidad
-            if not validate_cantidad(detalle_data['cantidad']):
+            try:
+                cantidad = float(detalle_data['cantidad'])
+                if cantidad <= 0:
+                    raise ValueError()
+            except:
                 db.session.rollback()
                 return jsonify({'error': 'La cantidad debe ser mayor a 0'}), 400
             
@@ -165,17 +170,16 @@ def crear_pedido():
             detalle = DetallePedido(
                 pedido_id=nuevo_pedido.id,
                 producto_id=producto.id,
-                cantidad=detalle_data['cantidad'],
+                cantidad=cantidad,
                 precio_unitario=precio_unitario,
-                subtotal=0  # Se calculará
+                subtotal=0
             )
             
-            # Calcular subtotal del detalle
             detalle.calcular_subtotal()
             db.session.add(detalle)
             
             # Actualizar stock del producto
-            producto.actualizar_stock(int(detalle_data['cantidad']), 'restar')
+            producto.actualizar_stock(int(cantidad), 'restar')
         
         # Calcular totales del pedido
         nuevo_pedido.calcular_totales()
@@ -193,7 +197,7 @@ def crear_pedido():
 
 
 @pedidos_bp.route('/<int:id>', methods=['PUT'])
-@jwt_required()
+@login_required
 def actualizar_pedido(id):
     """Actualizar un pedido (solo si está pendiente)"""
     try:
@@ -217,7 +221,7 @@ def actualizar_pedido(id):
         if 'descuento' in data:
             pedido.descuento = data['descuento']
         
-        # Si se actualizan los detalles, eliminar los antiguos y crear nuevos
+        # Si se actualizan los detalles
         if 'detalles' in data:
             # Restaurar stock de productos eliminados
             for detalle in pedido.detalles:
@@ -269,8 +273,7 @@ def actualizar_pedido(id):
 
 
 @pedidos_bp.route('/<int:id>/cambiar-estado', methods=['PATCH'])
-@jwt_required()
-@validate_required_fields(['estado'])
+@login_required
 def cambiar_estado_pedido(id):
     """Cambiar el estado de un pedido"""
     try:
@@ -280,6 +283,10 @@ def cambiar_estado_pedido(id):
             return jsonify({'error': 'Pedido no encontrado'}), 404
         
         data = request.get_json()
+        
+        if not data or not data.get('estado'):
+            return jsonify({'error': 'Estado es requerido'}), 400
+        
         nuevo_estado = data['estado']
         
         # Validar estado
@@ -323,7 +330,7 @@ def cambiar_estado_pedido(id):
 
 
 @pedidos_bp.route('/<int:id>', methods=['DELETE'])
-@jwt_required()
+@login_required
 def eliminar_pedido(id):
     """Eliminar un pedido (solo si está pendiente)"""
     try:
@@ -353,11 +360,10 @@ def eliminar_pedido(id):
 
 
 @pedidos_bp.route('/resumen-dia', methods=['GET'])
-@jwt_required()
+@login_required
 def resumen_dia():
-    """Obtener resumen de pedidos del día (para imprimir)"""
+    """Obtener resumen de pedidos del día"""
     try:
-        # Parámetro de fecha (por defecto hoy)
         fecha_param = request.args.get('fecha')
         
         if fecha_param:
@@ -378,14 +384,12 @@ def resumen_dia():
         total_general = 0
         
         for pedido in pedidos:
-            # Buscar si ya existe el cliente en el resumen
             cliente_existente = next(
                 (item for item in resumen if item['cliente_id'] == pedido.cliente_id),
                 None
             )
             
             if cliente_existente:
-                # Agregar productos de este pedido
                 for detalle in pedido.detalles:
                     cliente_existente['productos'].append({
                         'nombre': detalle.producto.nombre,
@@ -394,7 +398,6 @@ def resumen_dia():
                     })
                 cliente_existente['total'] += float(pedido.total)
             else:
-                # Crear nueva entrada de cliente
                 resumen.append({
                     'cliente_id': pedido.cliente_id,
                     'cliente_nombre': pedido.cliente.nombre,
@@ -421,11 +424,10 @@ def resumen_dia():
 
 
 @pedidos_bp.route('/estadisticas', methods=['GET'])
-@jwt_required()
+@login_required
 def estadisticas_pedidos():
     """Obtener estadísticas generales de pedidos"""
     try:
-        # Parámetros de fecha
         fecha_desde = request.args.get('fecha_desde')
         fecha_hasta = request.args.get('fecha_hasta')
         
@@ -459,16 +461,10 @@ def estadisticas_pedidos():
         
     except Exception as e:
         return jsonify({'error': f'Error al obtener estadísticas: {str(e)}'}), 500
-    
 
-from flask import send_file
-from app.utils.pdf_generator import PDFGenerator
-import os
-
-# Agregar al final del archivo pedidos.py
 
 @pedidos_bp.route('/<int:id>/pdf', methods=['GET'])
-@jwt_required()
+@login_required
 def generar_pdf_pedido(id):
     """Generar PDF de un pedido"""
     try:
@@ -477,11 +473,9 @@ def generar_pdf_pedido(id):
         if not pedido:
             return jsonify({'error': 'Pedido no encontrado'}), 404
         
-        # Generar PDF
         pdf_gen = PDFGenerator()
         buffer = pdf_gen.generar_pedido(pedido.to_dict(include_detalles=True))
         
-        # Retornar PDF
         return send_file(
             buffer,
             mimetype='application/pdf',
@@ -494,11 +488,10 @@ def generar_pdf_pedido(id):
 
 
 @pedidos_bp.route('/resumen-dia/pdf', methods=['GET'])
-@jwt_required()
+@login_required
 def generar_pdf_resumen_dia():
     """Generar PDF del resumen del día"""
     try:
-        # Parámetro de fecha (por defecto hoy)
         fecha_param = request.args.get('fecha')
         
         if fecha_param:
@@ -554,11 +547,9 @@ def generar_pdf_resumen_dia():
             'total_general': total_general
         }
         
-        # Generar PDF
         pdf_gen = PDFGenerator()
         buffer = pdf_gen.generar_resumen_dia(data)
         
-        # Retornar PDF
         return send_file(
             buffer,
             mimetype='application/pdf',

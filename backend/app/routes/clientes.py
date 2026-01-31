@@ -1,15 +1,14 @@
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask import Blueprint, request, jsonify, session
 from app.database import db
 from app.models.cliente import Cliente
 from app.models.pedido import Pedido
 from app.models.devolucion import Devolucion
-from app.utils.validators import validate_required_fields, validate_celular
+from app.utils.decorators import login_required
 
 clientes_bp = Blueprint('clientes', __name__)
 
 @clientes_bp.route('/', methods=['GET'])
-@jwt_required()
+@login_required
 def listar_clientes():
     """Listar todos los clientes"""
     try:
@@ -63,7 +62,7 @@ def listar_clientes():
 
 
 @clientes_bp.route('/todos', methods=['GET'])
-@jwt_required()
+@login_required
 def listar_todos_clientes():
     """Listar todos los clientes activos sin paginación (para selectores)"""
     try:
@@ -79,7 +78,7 @@ def listar_todos_clientes():
 
 
 @clientes_bp.route('/<int:id>', methods=['GET'])
-@jwt_required()
+@login_required
 def obtener_cliente(id):
     """Obtener un cliente por ID con sus estadísticas"""
     try:
@@ -114,19 +113,23 @@ def obtener_cliente(id):
 
 
 @clientes_bp.route('/', methods=['POST'])
-@jwt_required()
-@validate_required_fields(['nombre'])
+@login_required
 def crear_cliente():
     """Crear un nuevo cliente"""
     try:
         data = request.get_json()
         
+        if not data or not data.get('nombre'):
+            return jsonify({'error': 'El nombre es requerido'}), 400
+        
         # Validar celular si se proporciona
-        if data.get('celular') and not validate_celular(data['celular']):
-            return jsonify({
-                'error': 'Formato de celular inválido',
-                'mensaje': 'El celular debe tener 8 dígitos y empezar con 6 o 7'
-            }), 400
+        if data.get('celular'):
+            import re
+            if not re.match(r'^[67]\d{7}$', data['celular']):
+                return jsonify({
+                    'error': 'Formato de celular inválido',
+                    'mensaje': 'El celular debe tener 8 dígitos y empezar con 6 o 7'
+                }), 400
         
         # Verificar si ya existe un cliente con el mismo nombre
         cliente_existente = Cliente.query.filter(
@@ -162,7 +165,7 @@ def crear_cliente():
 
 
 @clientes_bp.route('/<int:id>', methods=['PUT'])
-@jwt_required()
+@login_required
 def actualizar_cliente(id):
     """Actualizar un cliente"""
     try:
@@ -187,11 +190,13 @@ def actualizar_cliente(id):
         
         # Validar celular si se actualiza
         if 'celular' in data:
-            if data['celular'] and not validate_celular(data['celular']):
-                return jsonify({
-                    'error': 'Formato de celular inválido',
-                    'mensaje': 'El celular debe tener 8 dígitos y empezar con 6 o 7'
-                }), 400
+            if data['celular']:
+                import re
+                if not re.match(r'^[67]\d{7}$', data['celular']):
+                    return jsonify({
+                        'error': 'Formato de celular inválido',
+                        'mensaje': 'El celular debe tener 8 dígitos y empezar con 6 o 7'
+                    }), 400
             cliente.celular = data['celular']
         
         # Actualizar otros campos
@@ -220,7 +225,7 @@ def actualizar_cliente(id):
 
 
 @clientes_bp.route('/<int:id>/toggle-activo', methods=['PATCH'])
-@jwt_required()
+@login_required
 def toggle_activo_cliente(id):
     """Activar/Desactivar un cliente"""
     try:
@@ -245,7 +250,7 @@ def toggle_activo_cliente(id):
 
 
 @clientes_bp.route('/<int:id>', methods=['DELETE'])
-@jwt_required()
+@login_required
 def eliminar_cliente(id):
     """Eliminar un cliente"""
     try:
@@ -276,7 +281,7 @@ def eliminar_cliente(id):
 
 
 @clientes_bp.route('/<int:id>/historial-pedidos', methods=['GET'])
-@jwt_required()
+@login_required
 def historial_pedidos_cliente(id):
     """Obtener historial de pedidos de un cliente"""
     try:
@@ -307,7 +312,7 @@ def historial_pedidos_cliente(id):
 
 
 @clientes_bp.route('/<int:id>/historial-devoluciones', methods=['GET'])
-@jwt_required()
+@login_required
 def historial_devoluciones_cliente(id):
     """Obtener historial de devoluciones de un cliente"""
     try:
@@ -338,7 +343,7 @@ def historial_devoluciones_cliente(id):
 
 
 @clientes_bp.route('/zonas', methods=['GET'])
-@jwt_required()
+@login_required
 def listar_zonas():
     """Listar todas las zonas registradas"""
     try:
@@ -356,7 +361,7 @@ def listar_zonas():
 
 
 @clientes_bp.route('/ciudades', methods=['GET'])
-@jwt_required()
+@login_required
 def listar_ciudades():
     """Listar todas las ciudades registradas"""
     try:
@@ -371,3 +376,22 @@ def listar_ciudades():
         
     except Exception as e:
         return jsonify({'error': f'Error al listar ciudades: {str(e)}'}), 500
+    
+
+@clientes_bp.route('/estadisticas', methods=['GET'])
+@login_required
+def estadisticas_clientes():
+    """Obtener estadísticas de clientes"""
+    try:
+        total_clientes = Cliente.query.count()
+        clientes_activos = Cliente.query.filter_by(activo=True).count()
+        clientes_inactivos = Cliente.query.filter_by(activo=False).count()
+        
+        return jsonify({
+            'total_clientes': total_clientes,
+            'activos': clientes_activos,
+            'inactivos': clientes_inactivos
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Error al obtener estadísticas: {str(e)}'}), 500

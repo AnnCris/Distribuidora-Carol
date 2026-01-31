@@ -1,17 +1,17 @@
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask import Blueprint, request, jsonify, session, send_file
 from datetime import datetime
 from app.database import db, get_bolivia_time
 from app.models.devolucion import Devolucion, DetalleDevolucion
 from app.models.pedido import Pedido
 from app.models.cliente import Cliente
 from app.models.producto import Producto
-from app.utils.validators import validate_required_fields, validate_cantidad
+from app.utils.decorators import login_required
+from app.utils.pdf_generator import PDFGenerator
 
 devoluciones_bp = Blueprint('devoluciones', __name__)
 
 @devoluciones_bp.route('/', methods=['GET'])
-@jwt_required()
+@login_required
 def listar_devoluciones():
     """Listar todas las devoluciones con filtros"""
     try:
@@ -82,7 +82,7 @@ def listar_devoluciones():
 
 
 @devoluciones_bp.route('/pendientes', methods=['GET'])
-@jwt_required()
+@login_required
 def listar_devoluciones_pendientes():
     """Listar devoluciones pendientes de compensación"""
     try:
@@ -105,7 +105,7 @@ def listar_devoluciones_pendientes():
 
 
 @devoluciones_bp.route('/<int:id>', methods=['GET'])
-@jwt_required()
+@login_required
 def obtener_devolucion(id):
     """Obtener una devolución por ID con todos sus detalles"""
     try:
@@ -123,13 +123,15 @@ def obtener_devolucion(id):
 
 
 @devoluciones_bp.route('/', methods=['POST'])
-@jwt_required()
-@validate_required_fields(['cliente_id', 'motivo', 'detalles'])
+@login_required
 def crear_devolucion():
     """Crear una nueva devolución"""
     try:
-        user_id = get_jwt_identity()
+        user_id = session.get('user_id')
         data = request.get_json()
+        
+        if not data or not data.get('cliente_id') or not data.get('motivo') or not data.get('detalles'):
+            return jsonify({'error': 'Cliente, motivo y detalles son requeridos'}), 400
         
         # Validar que el cliente existe
         cliente = Cliente.query.get(data['cliente_id'])
@@ -158,7 +160,6 @@ def crear_devolucion():
             if not pedido:
                 return jsonify({'error': 'Pedido no encontrado'}), 404
             
-            # Verificar que el pedido pertenece al cliente
             if pedido.cliente_id != data['cliente_id']:
                 return jsonify({'error': 'El pedido no pertenece a este cliente'}), 400
         
@@ -177,7 +178,7 @@ def crear_devolucion():
         )
         
         db.session.add(nueva_devolucion)
-        db.session.flush()  # Para obtener el ID de la devolución
+        db.session.flush()
         
         # Agregar detalles
         for detalle_data in data['detalles']:
@@ -188,7 +189,11 @@ def crear_devolucion():
                 return jsonify({'error': f'Producto con ID {detalle_data["producto_id"]} no encontrado'}), 404
             
             # Validar cantidad
-            if not validate_cantidad(detalle_data['cantidad']):
+            try:
+                cantidad = float(detalle_data['cantidad'])
+                if cantidad <= 0:
+                    raise ValueError()
+            except:
                 db.session.rollback()
                 return jsonify({'error': 'La cantidad debe ser mayor a 0'}), 400
             
@@ -208,7 +213,7 @@ def crear_devolucion():
             detalle = DetalleDevolucion(
                 devolucion_id=nueva_devolucion.id,
                 producto_id=producto.id,
-                cantidad=detalle_data['cantidad'],
+                cantidad=cantidad,
                 producto_reemplazo_id=producto_reemplazo_id,
                 observacion=detalle_data.get('observacion')
             )
@@ -216,7 +221,7 @@ def crear_devolucion():
             db.session.add(detalle)
             
             # Retornar producto al stock
-            producto.actualizar_stock(int(detalle_data['cantidad']), 'sumar')
+            producto.actualizar_stock(int(cantidad), 'sumar')
         
         db.session.commit()
         
@@ -231,7 +236,7 @@ def crear_devolucion():
 
 
 @devoluciones_bp.route('/<int:id>', methods=['PUT'])
-@jwt_required()
+@login_required
 def actualizar_devolucion(id):
     """Actualizar una devolución (solo si está pendiente)"""
     try:
@@ -310,8 +315,7 @@ def actualizar_devolucion(id):
 
 
 @devoluciones_bp.route('/<int:id>/marcar-compensado', methods=['PATCH'])
-@jwt_required()
-@validate_required_fields(['pedido_compensacion_id'])
+@login_required
 def marcar_compensado(id):
     """Marcar una devolución como compensada"""
     try:
@@ -324,6 +328,10 @@ def marcar_compensado(id):
             return jsonify({'error': 'La devolución ya fue compensada'}), 400
         
         data = request.get_json()
+        
+        if not data or not data.get('pedido_compensacion_id'):
+            return jsonify({'error': 'ID del pedido de compensación es requerido'}), 400
+        
         pedido_compensacion_id = data['pedido_compensacion_id']
         
         # Validar que el pedido existe
@@ -351,7 +359,7 @@ def marcar_compensado(id):
 
 
 @devoluciones_bp.route('/<int:id>', methods=['DELETE'])
-@jwt_required()
+@login_required
 def eliminar_devolucion(id):
     """Eliminar una devolución (solo si está pendiente)"""
     try:
@@ -381,7 +389,7 @@ def eliminar_devolucion(id):
 
 
 @devoluciones_bp.route('/motivos', methods=['GET'])
-@jwt_required()
+@login_required
 def listar_motivos():
     """Listar motivos de devolución disponibles"""
     try:
@@ -401,11 +409,10 @@ def listar_motivos():
 
 
 @devoluciones_bp.route('/estadisticas', methods=['GET'])
-@jwt_required()
+@login_required
 def estadisticas_devoluciones():
     """Obtener estadísticas de devoluciones"""
     try:
-        # Parámetros de fecha
         fecha_desde = request.args.get('fecha_desde')
         fecha_hasta = request.args.get('fecha_hasta')
         
@@ -450,9 +457,9 @@ def estadisticas_devoluciones():
 
 
 @devoluciones_bp.route('/cliente/<int:cliente_id>/pendientes-alerta', methods=['GET'])
-@jwt_required()
+@login_required
 def alerta_devoluciones_pendientes(cliente_id):
-    """Verificar si un cliente tiene devoluciones pendientes (para mostrar en pedidos)"""
+    """Verificar si un cliente tiene devoluciones pendientes"""
     try:
         cliente = Cliente.query.get(cliente_id)
         
@@ -474,15 +481,10 @@ def alerta_devoluciones_pendientes(cliente_id):
         
     except Exception as e:
         return jsonify({'error': f'Error al verificar devoluciones: {str(e)}'}), 500
-    
 
-from flask import send_file
-from app.utils.pdf_generator import PDFGenerator
-
-# Agregar al final del archivo devoluciones.py
 
 @devoluciones_bp.route('/<int:id>/pdf', methods=['GET'])
-@jwt_required()
+@login_required
 def generar_pdf_devolucion(id):
     """Generar PDF de una devolución"""
     try:
@@ -491,11 +493,9 @@ def generar_pdf_devolucion(id):
         if not devolucion:
             return jsonify({'error': 'Devolución no encontrada'}), 404
         
-        # Generar PDF
         pdf_gen = PDFGenerator()
         buffer = pdf_gen.generar_devolucion(devolucion.to_dict(include_detalles=True))
         
-        # Retornar PDF
         return send_file(
             buffer,
             mimetype='application/pdf',

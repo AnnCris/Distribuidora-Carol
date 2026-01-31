@@ -1,90 +1,129 @@
 // API URL
 const API_URL = 'http://localhost:5000';
 
-// Obtener token
+// Obtener token - CON VERIFICACIÓN EXHAUSTIVA
 function getToken() {
-    const token = localStorage.getItem('token');
-    console.log('🔑 getToken llamado, token:', token ? 'EXISTE' : 'NO EXISTE');
-    return token;
+    try {
+        const token = localStorage.getItem('token');
+        console.log('🔑 getToken:', token ? `Token existe (${token.length} chars)` : 'NO EXISTE');
+        return token;
+    } catch (error) {
+        console.error('❌ Error al obtener token:', error);
+        return null;
+    }
 }
 
 // Obtener usuario
 function getUser() {
-    const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
+    try {
+        const user = localStorage.getItem('user');
+        return user ? JSON.parse(user) : null;
+    } catch (error) {
+        console.error('❌ Error al obtener usuario:', error);
+        return null;
+    }
 }
 
-// Guardar autenticación
+// Guardar autenticación - CON VERIFICACIÓN
 function saveAuth(token, user) {
-    console.log('💾 Guardando token y usuario');
-    console.log('Token a guardar:', token ? token.substring(0, 20) + '...' : 'VACIO');
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));
-    console.log('✅ Token guardado. Verificando...');
-    console.log('Token en localStorage:', localStorage.getItem('token') ? 'EXISTE' : 'NO EXISTE');
+    try {
+        console.log('💾 Guardando autenticación...');
+        console.log('   Token length:', token ? token.length : 0);
+        console.log('   Usuario:', user ? user.nombre_completo : 'null');
+        
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        
+        // VERIFICAR que se guardó
+        const tokenGuardado = localStorage.getItem('token');
+        const userGuardado = localStorage.getItem('user');
+        
+        console.log('✅ Verificación:');
+        console.log('   Token guardado:', tokenGuardado ? 'SÍ' : 'NO');
+        console.log('   User guardado:', userGuardado ? 'SÍ' : 'NO');
+        
+        if (!tokenGuardado || !userGuardado) {
+            throw new Error('No se pudo guardar en localStorage');
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('❌ Error al guardar auth:', error);
+        return false;
+    }
 }
 
 // Limpiar autenticación
 function clearAuth() {
     console.log('🗑️ Limpiando autenticación');
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    try {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        console.log('✅ Auth limpiada');
+    } catch (error) {
+        console.error('❌ Error al limpiar auth:', error);
+    }
 }
 
 // Verificar autenticación
 function verificarAuth() {
-    const hasToken = !!getToken();
-    console.log('🔐 verificarAuth:', hasToken);
-    return hasToken;
+    const token = getToken();
+    const hasAuth = !!token;
+    console.log('🔐 verificarAuth:', hasAuth);
+    return hasAuth;
 }
 
-// Fetch con autenticación
+// Función para hacer peticiones fetch con manejo de errores
 async function fetchAPI(endpoint, options = {}) {
-    const token = getToken();
+    console.log(`📡 fetchAPI: ${endpoint}`);
     
-    if (!endpoint.startsWith('/api')) {
-        endpoint = '/api' + endpoint;
-    }
-    
-    console.log('📡 fetchAPI:', endpoint);
-    console.log('   Token disponible:', token ? 'SÍ' : 'NO');
-    
-    const config = {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers,
-        }
-    };
-
-    if (token) {
-        config.headers['Authorization'] = `Bearer ${token}`;
-        console.log('   ✅ Header Authorization agregado');
-    } else {
-        console.log('   ❌ NO se agregó header Authorization');
-    }
-
     try {
-        const response = await fetch(`${API_URL}${endpoint}`, config);
+        const baseURL = window.location.origin; // Usar el mismo origin
+        const url = `${baseURL}${endpoint}`;
         
-        console.log('   📥 Response:', response.status);
+        console.log('   🌐 URL completa:', url);
         
-        // Si es 401 Y NO es la ruta de login, redirigir
-        if (response.status === 401 && !endpoint.includes('/auth/login')) {
-            console.error('❌ 401 NO AUTORIZADO - Redirigiendo a login');
-            clearAuth();
-            window.location.href = 'login.html';
-            return { success: false, status: 401, data: { error: 'No autorizado' } };
+        // Configuración por defecto
+        const defaultOptions = {
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include' // ✅ IMPORTANTE: Incluir cookies/sesiones
+        };
+        
+        // Combinar opciones
+        const fetchOptions = {
+            ...defaultOptions,
+            ...options,
+            headers: {
+                ...defaultOptions.headers,
+                ...options.headers
+            }
+        };
+        
+        console.log('   📤 Opciones:', fetchOptions);
+        
+        const response = await fetch(url, fetchOptions);
+        
+        console.log('   📥 Response status:', response.status);
+        
+        let data;
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
+        } else {
+            const text = await response.text();
+            console.log('   📄 Response text:', text);
+            data = { error: text || 'Respuesta no válida del servidor' };
         }
-
-        const data = await response.json();
-
+        
         return {
             success: response.ok,
             status: response.status,
             data: data
         };
-
+        
     } catch (error) {
         console.error('❌ Error en fetchAPI:', error);
         return {
@@ -139,7 +178,12 @@ function formatearFechaHora(fecha) {
 // Cargar info usuario
 function cargarInfoUsuario() {
     const user = getUser();
-    if (!user) return;
+    if (!user) {
+        console.log('⚠️ No hay usuario para cargar info');
+        return;
+    }
+
+    console.log('👤 Cargando info de usuario:', user.nombre_completo);
 
     const userNameElement = document.getElementById('userName');
     if (userNameElement) {
@@ -167,7 +211,7 @@ function cargarInfoUsuario() {
 // Logout
 function logout() {
     clearAuth();
-    window.location.href = 'login.html';
+    window.location.href = '/login.html';
 }
 
 // Event listeners
