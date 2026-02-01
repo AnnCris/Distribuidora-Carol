@@ -5,15 +5,26 @@ let productosData = [];
 let pedidoActualId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    if (!verificarAuth()) {
-        window.location.href = 'login.html';
+    console.log('📄 Pedidos cargado');
+
+    // PRIMERO: Verificar autenticación
+    const autenticado = await verificarAuth();
+    if (!autenticado) {
+        console.log('❌ No autenticado');
         return;
     }
 
+    console.log('✅ Autenticado, cargando pedidos...');
+
+    // Cargar información del usuario
     cargarInfoUsuario();
-    await cargarPedidos();
-    await cargarClientes();
-    await cargarProductos();
+
+    // Cargar datos iniciales
+    await Promise.all([
+        cargarPedidos(),
+        cargarClientes(),
+        cargarProductos()
+    ]);
 
     // Filtros
     document.getElementById('buscar').addEventListener('input', debounce(cargarPedidos, 500));
@@ -47,7 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // Cambio de cliente (verificar devoluciones pendientes)
+    // Cambio de cliente
     document.getElementById('pedidoCliente').addEventListener('change', async (e) => {
         const clienteId = e.target.value;
         if (clienteId) {
@@ -61,6 +72,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 });
 
+function cargarInfoUsuario() {
+    const usuario = getUsuario();
+    if (usuario) {
+        document.getElementById('userName').textContent = usuario.nombre;
+        document.getElementById('userRole').textContent = usuario.rol === 'admin' ? 'Administrador' : 'Vendedor';
+        document.getElementById('userAvatar').textContent = usuario.nombre.charAt(0).toUpperCase();
+
+        const menuUsuarios = document.getElementById('menuUsuarios');
+        if (usuario.rol !== 'admin') {
+            menuUsuarios.style.display = 'none';
+        }
+    }
+}
+
 async function cargarPedidos() {
     try {
         document.getElementById('loadingPedidos').classList.remove('hidden');
@@ -72,7 +97,7 @@ async function cargarPedidos() {
         const fechaDesde = document.getElementById('fechaDesde').value;
         const fechaHasta = document.getElementById('fechaHasta').value;
 
-        let url = `/pedidos?page=${paginaActual}&per_page=20`;
+        let url = `/api/pedidos?page=${paginaActual}&per_page=20`;
         if (buscar) url += `&buscar=${buscar}`;
         if (estado) url += `&estado=${estado}`;
         if (fechaDesde) url += `&fecha_desde=${fechaDesde}`;
@@ -82,7 +107,7 @@ async function cargarPedidos() {
 
         document.getElementById('loadingPedidos').classList.add('hidden');
 
-        if (response.success && response.data.pedidos.length > 0) {
+        if (response.success && response.data.pedidos && response.data.pedidos.length > 0) {
             document.getElementById('tablaPedidos').classList.remove('hidden');
             document.getElementById('paginacion').classList.remove('hidden');
 
@@ -104,7 +129,6 @@ async function cargarPedidos() {
                 </tr>
             `).join('');
 
-            // Actualizar paginación
             document.getElementById('infoPagina').textContent = 
                 `Página ${response.data.pagina_actual} de ${response.data.total_paginas}`;
             
@@ -119,13 +143,13 @@ async function cargarPedidos() {
     } catch (error) {
         document.getElementById('loadingPedidos').classList.add('hidden');
         document.getElementById('noPedidos').classList.remove('hidden');
-        console.error('Error al cargar pedidos:', error);
+        console.error('❌ Error al cargar pedidos:', error);
     }
 }
 
 async function cargarClientes() {
     try {
-        const response = await fetchAPI('/clientes/todos');
+        const response = await fetchAPI('/api/clientes/todos');
         if (response.success) {
             clientesData = response.data.clientes;
             const select = document.getElementById('pedidoCliente');
@@ -133,13 +157,13 @@ async function cargarClientes() {
                 clientesData.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
         }
     } catch (error) {
-        console.error('Error al cargar clientes:', error);
+        console.error('❌ Error al cargar clientes:', error);
     }
 }
 
 async function cargarProductos() {
     try {
-        const response = await fetchAPI('/productos/todos');
+        const response = await fetchAPI('/api/productos/todos');
         if (response.success) {
             productosData = response.data.productos;
             const select = document.getElementById('productoSelect');
@@ -149,7 +173,7 @@ async function cargarProductos() {
                 ).join('');
         }
     } catch (error) {
-        console.error('Error al cargar productos:', error);
+        console.error('❌ Error al cargar productos:', error);
     }
 }
 
@@ -172,18 +196,17 @@ function agregarProducto() {
     const precio = parseFloat(document.getElementById('productoPrecio').value);
 
     if (!productoId || !cantidad || cantidad <= 0) {
-        mostrarAlerta('Seleccione un producto y cantidad válida', 'error');
+        mostrarMensaje('Seleccione un producto y cantidad válida', 'error');
         return;
     }
 
     const producto = productosData.find(p => p.id == productoId);
     
     if (cantidad > producto.stock_actual) {
-        mostrarAlerta(`Stock insuficiente. Disponible: ${producto.stock_actual}`, 'error');
+        mostrarMensaje(`Stock insuficiente. Disponible: ${producto.stock_actual}`, 'error');
         return;
     }
 
-    // Verificar si ya está en la lista
     const index = productosSeleccionados.findIndex(p => p.producto_id == productoId);
     if (index >= 0) {
         productosSeleccionados[index].cantidad += cantidad;
@@ -196,7 +219,6 @@ function agregarProducto() {
         });
     }
 
-    // Limpiar formulario
     document.getElementById('productoSelect').value = '';
     document.getElementById('productoCantidad').value = '';
     document.getElementById('productoPrecio').value = '';
@@ -256,12 +278,12 @@ async function guardarPedido() {
     const descuento = parseFloat(document.getElementById('pedidoDescuento').value) || 0;
 
     if (!clienteId) {
-        mostrarAlerta('Seleccione un cliente', 'error');
+        mostrarMensaje('Seleccione un cliente', 'error');
         return;
     }
 
     if (productosSeleccionados.length === 0) {
-        mostrarAlerta('Agregue al menos un producto', 'error');
+        mostrarMensaje('Agregue al menos un producto', 'error');
         return;
     }
 
@@ -274,22 +296,22 @@ async function guardarPedido() {
     };
 
     try {
-        const response = await fetchAPI('/pedidos', {
+        const response = await fetchAPI('/api/pedidos', {
             method: 'POST',
             body: JSON.stringify(data)
         });
 
         if (response.success) {
-            mostrarAlerta('Pedido creado exitosamente', 'success');
+            mostrarMensaje('Pedido creado exitosamente', 'success');
             cerrarModal('modalNuevoPedido');
             cargarPedidos();
         } else {
-            mostrarAlerta(response.data.error || 'Error al crear pedido', 'error');
+            mostrarMensaje(response.data.error || 'Error al crear pedido', 'error');
         }
 
     } catch (error) {
-        mostrarAlerta('Error de conexión', 'error');
-        console.error('Error al guardar pedido:', error);
+        mostrarMensaje('Error de conexión', 'error');
+        console.error('❌ Error al guardar pedido:', error);
     }
 }
 
@@ -299,7 +321,7 @@ async function verPedido(id) {
     document.getElementById('contenidoVerPedido').innerHTML = '<div class="spinner"></div>';
 
     try {
-        const response = await fetchAPI(`/pedidos/${id}`);
+        const response = await fetchAPI(`/api/pedidos/${id}`);
 
         if (response.success) {
             const pedido = response.data.pedido;
@@ -315,7 +337,7 @@ async function verPedido(id) {
                     ${pedido.observaciones ? `<p><strong>Observaciones:</strong> ${pedido.observaciones}</p>` : ''}
                 </div>
 
-                <h3 style="color: var(--color-celeste); margin-bottom: 10px;">Productos</h3>
+                <h3 style="color: #3b82f6; margin-bottom: 10px;">Productos</h3>
                 <table style="margin-bottom: 20px;">
                     <thead>
                         <tr>
@@ -329,7 +351,7 @@ async function verPedido(id) {
                         ${pedido.detalles.map(det => `
                             <tr>
                                 <td>${det.producto_nombre}</td>
-                                <td>${det.cantidad} ${det.unidad_medida}</td>
+                                <td>${det.cantidad}</td>
                                 <td>Bs. ${formatearPrecio(det.precio_unitario)}</td>
                                 <td><strong>Bs. ${formatearPrecio(det.subtotal)}</strong></td>
                             </tr>
@@ -337,16 +359,14 @@ async function verPedido(id) {
                     </tbody>
                 </table>
 
-                <div style="text-align: right; background: var(--color-gris); padding: 15px; border-radius: var(--border-radius-small);">
+                <div style="text-align: right; background: #f3f4f6; padding: 15px; border-radius: 8px;">
                     <p><strong>Subtotal:</strong> Bs. ${formatearPrecio(pedido.subtotal)}</p>
                     <p><strong>Descuento:</strong> Bs. ${formatearPrecio(pedido.descuento)}</p>
-                    <p style="font-size: 18px; color: var(--color-celeste);"><strong>TOTAL:</strong> Bs. ${formatearPrecio(pedido.total)}</p>
+                    <p style="font-size: 18px; color: #3b82f6;"><strong>TOTAL:</strong> Bs. ${formatearPrecio(pedido.total)}</p>
                 </div>
             `;
 
             document.getElementById('contenidoVerPedido').innerHTML = html;
-
-            // Botón PDF
             document.getElementById('btnDescargarPDF').onclick = () => descargarPDF(id);
 
         } else {
@@ -357,7 +377,7 @@ async function verPedido(id) {
     } catch (error) {
         document.getElementById('contenidoVerPedido').innerHTML = 
             '<p class="text-center">Error de conexión</p>';
-        console.error('Error al ver pedido:', error);
+        console.error('❌ Error al ver pedido:', error);
     }
 }
 
@@ -366,40 +386,39 @@ async function cambiarEstado(id, nuevoEstado) {
         ? '¿Marcar este pedido como entregado?' 
         : '¿Está seguro de cancelar este pedido?';
 
-    if (!confirmar(mensaje)) return;
+    if (!confirm(mensaje)) return;
 
     try {
-        const response = await fetchAPI(`/pedidos/${id}/cambiar-estado`, {
+        const response = await fetchAPI(`/api/pedidos/${id}/cambiar-estado`, {
             method: 'PATCH',
             body: JSON.stringify({ estado: nuevoEstado })
         });
 
         if (response.success) {
-            mostrarAlerta(`Pedido ${nuevoEstado} exitosamente`, 'success');
+            mostrarMensaje(`Pedido ${nuevoEstado} exitosamente`, 'success');
             cargarPedidos();
         } else {
-            mostrarAlerta(response.data.error || 'Error al cambiar estado', 'error');
+            mostrarMensaje(response.data.error || 'Error al cambiar estado', 'error');
         }
 
     } catch (error) {
-        mostrarAlerta('Error de conexión', 'error');
-        console.error('Error al cambiar estado:', error);
+        mostrarMensaje('Error de conexión', 'error');
+        console.error('❌ Error al cambiar estado:', error);
     }
 }
 
 async function descargarPDF(id) {
     try {
-        const token = getToken();
-        window.open(`${API_URL}/pedidos/${id}/pdf`, '_blank');
+        window.open(`${window.location.origin}/api/pedidos/${id}/pdf`, '_blank');
     } catch (error) {
-        mostrarAlerta('Error al descargar PDF', 'error');
-        console.error('Error al descargar PDF:', error);
+        mostrarMensaje('Error al descargar PDF', 'error');
+        console.error('❌ Error al descargar PDF:', error);
     }
 }
 
 async function verificarDevolucionesPendientes(clienteId) {
     try {
-        const response = await fetchAPI(`/devoluciones/cliente/${clienteId}/pendientes-alerta`);
+        const response = await fetchAPI(`/api/devoluciones/cliente/${clienteId}/pendientes-alerta`);
         
         if (response.success && response.data.tiene_devoluciones_pendientes) {
             document.getElementById('alertaDevolucionesPendientes').classList.remove('hidden');
@@ -408,7 +427,7 @@ async function verificarDevolucionesPendientes(clienteId) {
         }
 
     } catch (error) {
-        console.error('Error al verificar devoluciones:', error);
+        console.error('❌ Error al verificar devoluciones:', error);
     }
 }
 
@@ -419,4 +438,30 @@ function limpiarFiltros() {
     document.getElementById('fechaHasta').value = '';
     paginaActual = 1;
     cargarPedidos();
+}
+
+function formatearFecha(fecha) {
+    const date = new Date(fecha);
+    return date.toLocaleDateString('es-BO');
+}
+
+function formatearFechaHora(fecha) {
+    const date = new Date(fecha);
+    return date.toLocaleString('es-BO');
+}
+
+function formatearPrecio(precio) {
+    return parseFloat(precio).toFixed(2);
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
 }

@@ -74,7 +74,7 @@
                         <p id="userRole">Rol</p>
                     </div>
                 </div>
-                <button class="btn btn-danger btn-sm" id="btnLogout" style="width: 100%;">
+                <button class="btn btn-danger btn-sm" onclick="logout()" style="width: 100%;">
                     Cerrar Sesión
                 </button>
             </div>
@@ -168,7 +168,7 @@
     <!-- Modal Nueva Devolución -->
     <div id="modalNuevaDevolucion" class="modal">
         <div class="modal-content" style="max-width: 900px;">
-            <div class="modal-header" style="background: var(--color-rojo);">
+            <div class="modal-header" style="background: #ef4444;">
                 <h2>Nueva Devolución</h2>
                 <span class="close" onclick="cerrarModal('modalNuevaDevolucion')">&times;</span>
             </div>
@@ -209,7 +209,7 @@
 
                     <hr style="margin: 20px 0;">
 
-                    <h3 style="color: var(--color-rojo); margin-bottom: 15px;">Productos Devueltos</h3>
+                    <h3 style="color: #ef4444; margin-bottom: 15px;">Productos Devueltos</h3>
 
                     <div style="display: grid; grid-template-columns: 2fr 1fr 2fr auto; gap: 10px; margin-bottom: 10px;">
                         <div class="form-group">
@@ -267,7 +267,7 @@
     <!-- Modal Ver Devolución -->
     <div id="modalVerDevolucion" class="modal">
         <div class="modal-content" style="max-width: 800px;">
-            <div class="modal-header" style="background: var(--color-rojo);">
+            <div class="modal-header" style="background: #ef4444;">
                 <h2 id="tituloVerDevolucion">Detalle de Devolución</h2>
                 <span class="close" onclick="cerrarModal('modalVerDevolucion')">&times;</span>
             </div>
@@ -285,7 +285,8 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=2"></script>
+    <script src="js/app.js"></script>
+    <script src="js/auth.js"></script>
     <script src="js/devoluciones.js"></script>
 </body>
 </html>

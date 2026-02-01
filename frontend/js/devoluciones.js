@@ -5,16 +5,27 @@ let productosData = [];
 let devolucionActualId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    if (!verificarAuth()) {
-        window.location.href = 'login.html';
+    console.log('📄 Devoluciones cargado');
+
+    // PRIMERO: Verificar autenticación
+    const autenticado = await verificarAuth();
+    if (!autenticado) {
+        console.log('❌ No autenticado');
         return;
     }
 
+    console.log('✅ Autenticado, cargando devoluciones...');
+
+    // Cargar información del usuario
     cargarInfoUsuario();
-    await cargarDevoluciones();
-    await cargarClientes();
-    await cargarProductos();
-    await cargarMotivos();
+
+    // Cargar datos iniciales
+    await Promise.all([
+        cargarDevoluciones(),
+        cargarClientes(),
+        cargarProductos(),
+        cargarMotivos()
+    ]);
 
     // Filtros
     document.getElementById('buscar').addEventListener('input', debounce(cargarDevoluciones, 500));
@@ -41,6 +52,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 });
 
+function cargarInfoUsuario() {
+    const usuario = getUsuario();
+    if (usuario) {
+        document.getElementById('userName').textContent = usuario.nombre;
+        document.getElementById('userRole').textContent = usuario.rol === 'admin' ? 'Administrador' : 'Vendedor';
+        document.getElementById('userAvatar').textContent = usuario.nombre.charAt(0).toUpperCase();
+
+        const menuUsuarios = document.getElementById('menuUsuarios');
+        if (usuario.rol !== 'admin') {
+            menuUsuarios.style.display = 'none';
+        }
+    }
+}
+
 async function cargarDevoluciones() {
     try {
         document.getElementById('loadingDevoluciones').classList.remove('hidden');
@@ -52,7 +77,7 @@ async function cargarDevoluciones() {
         const motivo = document.getElementById('filtroMotivo').value;
         const fechaDesde = document.getElementById('fechaDesde').value;
 
-        let url = `/devoluciones?page=${paginaActual}&per_page=20`;
+        let url = `/api/devoluciones?page=${paginaActual}&per_page=20`;
         if (buscar) url += `&buscar=${buscar}`;
         if (estado) url += `&estado=${estado}`;
         if (motivo) url += `&motivo=${motivo}`;
@@ -62,7 +87,7 @@ async function cargarDevoluciones() {
 
         document.getElementById('loadingDevoluciones').classList.add('hidden');
 
-        if (response.success && response.data.devoluciones.length > 0) {
+        if (response.success && response.data.devoluciones && response.data.devoluciones.length > 0) {
             document.getElementById('tablaDevoluciones').classList.remove('hidden');
             document.getElementById('paginacion').classList.remove('hidden');
 
@@ -85,7 +110,6 @@ async function cargarDevoluciones() {
                 </tr>
             `).join('');
 
-            // Actualizar paginación
             document.getElementById('infoPagina').textContent = 
                 `Página ${response.data.pagina_actual} de ${response.data.total_paginas}`;
             
@@ -100,13 +124,13 @@ async function cargarDevoluciones() {
     } catch (error) {
         document.getElementById('loadingDevoluciones').classList.add('hidden');
         document.getElementById('noDevoluciones').classList.remove('hidden');
-        console.error('Error al cargar devoluciones:', error);
+        console.error('❌ Error al cargar devoluciones:', error);
     }
 }
 
 async function cargarClientes() {
     try {
-        const response = await fetchAPI('/clientes/todos');
+        const response = await fetchAPI('/api/clientes/todos');
         if (response.success) {
             clientesData = response.data.clientes;
             const select = document.getElementById('devolucionCliente');
@@ -114,13 +138,13 @@ async function cargarClientes() {
                 clientesData.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
         }
     } catch (error) {
-        console.error('Error al cargar clientes:', error);
+        console.error('❌ Error al cargar clientes:', error);
     }
 }
 
 async function cargarProductos() {
     try {
-        const response = await fetchAPI('/productos/todos');
+        const response = await fetchAPI('/api/productos/todos');
         if (response.success) {
             productosData = response.data.productos;
             const selectDevuelto = document.getElementById('productoDevueltoSelect');
@@ -134,13 +158,13 @@ async function cargarProductos() {
             selectReemplazo.innerHTML = '<option value="">Sin reemplazo</option>' + options;
         }
     } catch (error) {
-        console.error('Error al cargar productos:', error);
+        console.error('❌ Error al cargar productos:', error);
     }
 }
 
 async function cargarMotivos() {
     try {
-        const response = await fetchAPI('/devoluciones/motivos');
+        const response = await fetchAPI('/api/devoluciones/motivos');
         if (response.success) {
             const selectMotivo = document.getElementById('devolucionMotivo');
             const filtroMotivo = document.getElementById('filtroMotivo');
@@ -153,7 +177,7 @@ async function cargarMotivos() {
             filtroMotivo.innerHTML += options;
         }
     } catch (error) {
-        console.error('Error al cargar motivos:', error);
+        console.error('❌ Error al cargar motivos:', error);
     }
 }
 
@@ -170,7 +194,7 @@ function agregarProductoDevolucion() {
     const reemplazoId = document.getElementById('productoReemplazoSelect').value;
 
     if (!productoId || !cantidad || cantidad <= 0) {
-        mostrarAlerta('Seleccione un producto y cantidad válida', 'error');
+        mostrarMensaje('Seleccione un producto y cantidad válida', 'error');
         return;
     }
 
@@ -185,7 +209,6 @@ function agregarProductoDevolucion() {
         reemplazo_nombre: reemplazo ? reemplazo.nombre : 'Sin reemplazo'
     });
 
-    // Limpiar formulario
     document.getElementById('productoDevueltoSelect').value = '';
     document.getElementById('productoCantidadDev').value = '';
     document.getElementById('productoReemplazoSelect').value = '';
@@ -227,12 +250,12 @@ async function guardarDevolucion() {
     const observaciones = document.getElementById('devolucionObservaciones').value;
 
     if (!clienteId || !motivo) {
-        mostrarAlerta('Complete los campos requeridos', 'error');
+        mostrarMensaje('Complete los campos requeridos', 'error');
         return;
     }
 
     if (productosDevolucion.length === 0) {
-        mostrarAlerta('Agregue al menos un producto', 'error');
+        mostrarMensaje('Agregue al menos un producto', 'error');
         return;
     }
 
@@ -249,22 +272,22 @@ async function guardarDevolucion() {
     };
 
     try {
-        const response = await fetchAPI('/devoluciones', {
+        const response = await fetchAPI('/api/devoluciones', {
             method: 'POST',
             body: JSON.stringify(data)
         });
 
         if (response.success) {
-            mostrarAlerta('Devolución registrada exitosamente', 'success');
+            mostrarMensaje('Devolución registrada exitosamente', 'success');
             cerrarModal('modalNuevaDevolucion');
             cargarDevoluciones();
         } else {
-            mostrarAlerta(response.data.error || 'Error al registrar devolución', 'error');
+            mostrarMensaje(response.data.error || 'Error al registrar devolución', 'error');
         }
 
     } catch (error) {
-        mostrarAlerta('Error de conexión', 'error');
-        console.error('Error al guardar devolución:', error);
+        mostrarMensaje('Error de conexión', 'error');
+        console.error('❌ Error al guardar devolución:', error);
     }
 }
 
@@ -275,7 +298,7 @@ async function verDevolucion(id) {
     document.getElementById('btnDescargarPDFDev').style.display = 'none';
 
     try {
-        const response = await fetchAPI(`/devoluciones/${id}`);
+        const response = await fetchAPI(`/api/devoluciones/${id}`);
 
         if (response.success) {
             const dev = response.data.devolucion;
@@ -294,7 +317,7 @@ async function verDevolucion(id) {
                     ${dev.observaciones ? `<p><strong>Observaciones:</strong> ${dev.observaciones}</p>` : ''}
                 </div>
 
-                <h3 style="color: var(--color-rojo); margin-bottom: 10px;">Productos Devueltos</h3>
+                <h3 style="color: #ef4444; margin-bottom: 10px;">Productos Devueltos</h3>
                 <table style="margin-bottom: 20px;">
                     <thead>
                         <tr>
@@ -315,11 +338,11 @@ async function verDevolucion(id) {
                 </table>
 
                 ${dev.fecha_compensacion ? `
-                    <div style="background: var(--color-gris); padding: 15px; border-radius: var(--border-radius-small);">
+                    <div style="background: #f3f4f6; padding: 15px; border-radius: 8px;">
                         <p><strong>✅ Compensado el:</strong> ${formatearFechaHora(dev.fecha_compensacion)}</p>
                     </div>
                 ` : `
-                    <div style="background: #fff3cd; padding: 15px; border-radius: var(--border-radius-small);">
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px;">
                         <p style="color: #856404;"><strong>⚠️ Pendiente de compensación</strong></p>
                         <p style="color: #856404; font-size: 14px;">Esta devolución debe ser compensada en el próximo pedido del cliente.</p>
                     </div>
@@ -328,7 +351,6 @@ async function verDevolucion(id) {
 
             document.getElementById('contenidoVerDevolucion').innerHTML = html;
             
-            // Mostrar botón PDF
             document.getElementById('btnDescargarPDFDev').style.display = 'inline-block';
             document.getElementById('btnDescargarPDFDev').onclick = () => descargarPDFDevolucion(id);
 
@@ -340,33 +362,33 @@ async function verDevolucion(id) {
     } catch (error) {
         document.getElementById('contenidoVerDevolucion').innerHTML = 
             '<p class="text-center">Error de conexión</p>';
-        console.error('Error al ver devolución:', error);
+        console.error('❌ Error al ver devolución:', error);
     }
 }
 
 async function eliminarDevolucion(id) {
-    if (!confirmar('¿Está seguro de eliminar esta devolución?')) return;
+    if (!confirm('¿Está seguro de eliminar esta devolución?')) return;
 
     try {
-        const response = await fetchAPI(`/devoluciones/${id}`, {
+        const response = await fetchAPI(`/api/devoluciones/${id}`, {
             method: 'DELETE'
         });
 
         if (response.success) {
-            mostrarAlerta('Devolución eliminada exitosamente', 'success');
+            mostrarMensaje('Devolución eliminada exitosamente', 'success');
             cargarDevoluciones();
         } else {
-            mostrarAlerta(response.data.error || 'Error al eliminar devolución', 'error');
+            mostrarMensaje(response.data.error || 'Error al eliminar devolución', 'error');
         }
 
     } catch (error) {
-        mostrarAlerta('Error de conexión', 'error');
-        console.error('Error al eliminar devolución:', error);
+        mostrarMensaje('Error de conexión', 'error');
+        console.error('❌ Error al eliminar devolución:', error);
     }
 }
 
 function descargarPDFDevolucion(id) {
-    window.open(`${API_URL}/devoluciones/${id}/pdf`, '_blank');
+    window.open(`${window.location.origin}/api/devoluciones/${id}/pdf`, '_blank');
 }
 
 function traducirMotivo(motivo) {
@@ -390,4 +412,26 @@ function limpiarFiltros() {
     document.getElementById('fechaDesde').value = '';
     paginaActual = 1;
     cargarDevoluciones();
+}
+
+function formatearFecha(fecha) {
+    const date = new Date(fecha);
+    return date.toLocaleDateString('es-BO');
+}
+
+function formatearFechaHora(fecha) {
+    const date = new Date(fecha);
+    return date.toLocaleString('es-BO');
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
 }

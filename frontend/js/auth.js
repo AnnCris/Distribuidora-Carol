@@ -78,6 +78,13 @@ function initLogin() {
 async function verificarAuth() {
     console.log('🔐 Verificando autenticación...');
     
+    // Si estamos en login o index, no verificar
+    const path = window.location.pathname;
+    if (path.includes('login.html') || path.includes('index.html') || path === '/') {
+        console.log('📍 En página pública, saltando verificación');
+        return true;
+    }
+    
     try {
         const response = await fetchAPI('/api/auth/validar');
         
@@ -90,12 +97,21 @@ async function verificarAuth() {
         } else {
             console.log('❌ No autenticado, redirigiendo a login...');
             sessionStorage.removeItem('usuario');
-            window.location.href = '/login.html';
+            
+            // Evitar loop infinito
+            if (!path.includes('login.html')) {
+                window.location.href = '/login.html';
+            }
             return false;
         }
     } catch (error) {
         console.error('❌ Error verificando auth:', error);
-        window.location.href = '/login.html';
+        sessionStorage.removeItem('usuario');
+        
+        // Evitar loop infinito
+        if (!path.includes('login.html')) {
+            window.location.href = '/login.html';
+        }
         return false;
     }
 }

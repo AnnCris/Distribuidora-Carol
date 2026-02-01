@@ -1,11 +1,18 @@
 let resumenData = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    if (!verificarAuth()) {
-        window.location.href = 'login.html';
+    console.log('📄 Resumen del día cargado');
+
+    // PRIMERO: Verificar autenticación
+    const autenticado = await verificarAuth();
+    if (!autenticado) {
+        console.log('❌ No autenticado');
         return;
     }
 
+    console.log('✅ Autenticado, cargando resumen...');
+
+    // Cargar información del usuario
     cargarInfoUsuario();
     
     // Establecer fecha de hoy
@@ -20,11 +27,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 });
 
+function cargarInfoUsuario() {
+    const usuario = getUsuario();
+    if (usuario) {
+        document.getElementById('userName').textContent = usuario.nombre;
+        document.getElementById('userRole').textContent = usuario.rol === 'admin' ? 'Administrador' : 'Vendedor';
+        document.getElementById('userAvatar').textContent = usuario.nombre.charAt(0).toUpperCase();
+
+        const menuUsuarios = document.getElementById('menuUsuarios');
+        if (usuario.rol !== 'admin') {
+            menuUsuarios.style.display = 'none';
+        }
+    }
+}
+
 async function cargarResumen() {
     const fecha = document.getElementById('fechaResumen').value;
     
     if (!fecha) {
-        mostrarAlerta('Seleccione una fecha', 'error');
+        mostrarMensaje('Seleccione una fecha', 'error');
         return;
     }
 
@@ -33,7 +54,7 @@ async function cargarResumen() {
         document.getElementById('contenidoResumen').classList.add('hidden');
         document.getElementById('noResumen').classList.add('hidden');
 
-        const response = await fetchAPI(`/pedidos/resumen-dia?fecha=${fecha}`);
+        const response = await fetchAPI(`/api/pedidos/resumen-dia?fecha=${fecha}`);
 
         document.getElementById('loadingResumen').classList.add('hidden');
 
@@ -46,7 +67,7 @@ async function cargarResumen() {
             document.getElementById('totalGeneral').textContent = `Bs. ${formatearPrecio(resumenData.total_general)}`;
             
             // Actualizar fecha seleccionada
-            document.getElementById('fechaSeleccionada').textContent = `Fecha: ${resumenData.fecha}`;
+            document.getElementById('fechaSeleccionada').textContent = `Fecha: ${formatearFecha(resumenData.fecha)}`;
 
             if (resumenData.resumen.length > 0) {
                 mostrarResumen();
@@ -56,14 +77,14 @@ async function cargarResumen() {
 
         } else {
             document.getElementById('noResumen').classList.remove('hidden');
-            mostrarAlerta('Error al cargar resumen', 'error');
+            mostrarMensaje('Error al cargar resumen', 'error');
         }
 
     } catch (error) {
         document.getElementById('loadingResumen').classList.add('hidden');
         document.getElementById('noResumen').classList.remove('hidden');
-        mostrarAlerta('Error de conexión', 'error');
-        console.error('Error al cargar resumen:', error);
+        mostrarMensaje('Error de conexión', 'error');
+        console.error('❌ Error al cargar resumen:', error);
     }
 }
 
@@ -75,15 +96,15 @@ function mostrarResumen() {
 
     resumenData.resumen.forEach((cliente, index) => {
         html += `
-            <div style="background: ${index % 2 === 0 ? 'var(--color-blanco)' : 'var(--color-gris)'}; 
+            <div style="background: ${index % 2 === 0 ? 'white' : '#f3f4f6'}; 
                         padding: 20px; 
-                        border-radius: var(--border-radius-small); 
+                        border-radius: 8px; 
                         margin-bottom: 15px;
-                        border-left: 4px solid var(--color-celeste);">
+                        border-left: 4px solid #3b82f6;">
                 
-                <h3 style="color: var(--color-celeste); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="color: #3b82f6; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
                     <span>📦 CLIENTE: ${cliente.cliente_nombre.toUpperCase()}</span>
-                    <span style="font-size: 16px; color: var(--color-exito);">Bs. ${formatearPrecio(cliente.total)}</span>
+                    <span style="font-size: 16px; color: #10b981;">Bs. ${formatearPrecio(cliente.total)}</span>
                 </h3>
                 
                 <div style="margin-left: 20px;">
@@ -108,6 +129,20 @@ function formatearCantidad(cantidad) {
     return num.toFixed(2);
 }
 
+function formatearPrecio(precio) {
+    return parseFloat(precio).toFixed(2);
+}
+
+function formatearFecha(fecha) {
+    const date = new Date(fecha + 'T00:00:00');
+    return date.toLocaleDateString('es-BO', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+}
+
 function cargarHoy() {
     const hoy = new Date().toISOString().split('T')[0];
     document.getElementById('fechaResumen').value = hoy;
@@ -118,14 +153,14 @@ function descargarPDFResumen() {
     const fecha = document.getElementById('fechaResumen').value;
     
     if (!fecha) {
-        mostrarAlerta('Seleccione una fecha primero', 'error');
+        mostrarMensaje('Seleccione una fecha primero', 'error');
         return;
     }
 
     if (!resumenData || resumenData.total_pedidos === 0) {
-        mostrarAlerta('No hay datos para descargar', 'error');
+        mostrarMensaje('No hay datos para descargar', 'error');
         return;
     }
 
-    window.open(`${API_URL}/pedidos/resumen-dia/pdf?fecha=${fecha}`, '_blank');
+    window.open(`${window.location.origin}/api/pedidos/resumen-dia/pdf?fecha=${fecha}`, '_blank');
 }

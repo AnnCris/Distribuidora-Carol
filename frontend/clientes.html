@@ -74,7 +74,7 @@
                         <p id="userRole">Rol</p>
                     </div>
                 </div>
-                <button class="btn btn-danger btn-sm" id="btnLogout" style="width: 100%;">
+                <button class="btn btn-danger btn-sm" onclick="logout()" style="width: 100%;">
                     Cerrar Sesión
                 </button>
             </div>
@@ -193,7 +193,7 @@
                             maxlength="8"
                             pattern="[67][0-9]{7}"
                         >
-                        <small style="color: var(--color-gris-oscuro);">Formato: 8 dígitos empezando con 6 o 7</small>
+                        <small style="color: #666;">Formato: 8 dígitos empezando con 6 o 7</small>
                     </div>
 
                     <div class="form-group">
@@ -260,7 +260,8 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=2"></script>
+    <script src="js/app.js"></script>
+    <script src="js/auth.js"></script>
     <script src="js/clientes.js"></script>
 </body>
 </html>

@@ -1,21 +1,34 @@
 let usuarioActualId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    if (!verificarAuth()) {
-        window.location.href = 'login.html';
+    console.log('📄 Usuarios cargado');
+
+    // PRIMERO: Verificar autenticación
+    const autenticado = await verificarAuth();
+    if (!autenticado) {
+        console.log('❌ No autenticado');
         return;
     }
 
-    const user = getUser();
-    if (user.rol !== 'admin') {
-        mostrarAlerta('Acceso denegado. Solo administradores pueden acceder.', 'error');
+    console.log('✅ Autenticado, verificando permisos...');
+
+    // SEGUNDO: Verificar que sea admin
+    const usuario = getUsuario();
+    if (usuario.rol !== 'admin') {
+        console.log('❌ No es admin');
+        mostrarMensaje('Acceso denegado. Solo administradores pueden acceder.', 'error');
         setTimeout(() => {
             window.location.href = 'dashboard.html';
         }, 2000);
         return;
     }
 
+    console.log('✅ Admin verificado, cargando usuarios...');
+
+    // Cargar información del usuario
     cargarInfoUsuario();
+
+    // Cargar usuarios
     await cargarUsuarios();
 
     // Menu toggle
@@ -24,30 +37,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 });
 
+function cargarInfoUsuario() {
+    const usuario = getUsuario();
+    if (usuario) {
+        document.getElementById('userName').textContent = usuario.nombre;
+        document.getElementById('userRole').textContent = usuario.rol === 'admin' ? 'Administrador' : 'Vendedor';
+        document.getElementById('userAvatar').textContent = usuario.nombre.charAt(0).toUpperCase();
+    }
+}
+
 async function cargarUsuarios() {
     try {
         document.getElementById('loadingUsuarios').classList.remove('hidden');
         document.getElementById('tablaUsuarios').classList.add('hidden');
         document.getElementById('noUsuarios').classList.add('hidden');
 
-        const response = await fetchAPI('/usuarios');
+        const response = await fetchAPI('/api/usuarios');
 
         document.getElementById('loadingUsuarios').classList.add('hidden');
 
-        if (response.success && response.data.usuarios.length > 0) {
+        if (response.success && response.data.usuarios && response.data.usuarios.length > 0) {
             document.getElementById('tablaUsuarios').classList.remove('hidden');
 
             const tbody = document.getElementById('usuariosBody');
-            const usuarioActual = getUser();
+            const usuarioActual = getUsuario();
 
             tbody.innerHTML = response.data.usuarios.map(usuario => `
                 <tr>
-                    <td><strong>${usuario.nombre_completo}</strong></td>
-                    <td>${usuario.usuario}</td>
+                    <td><strong>${usuario.nombre}</strong></td>
+                    <td>${usuario.email}</td>
                     <td><span class="badge ${usuario.rol === 'admin' ? 'badge-entregado' : 'badge-pendiente'}">
                         ${usuario.rol === 'admin' ? 'ADMINISTRADOR' : 'VENDEDOR'}
                     </span></td>
-                    <td>${usuario.ultimo_acceso || 'Nunca'}</td>
+                    <td>${formatearFecha(usuario.fecha_creacion)}</td>
                     <td><span class="badge badge-${usuario.activo ? 'activo' : 'inactivo'}">
                         ${usuario.activo ? 'ACTIVO' : 'INACTIVO'}
                     </span></td>
@@ -58,7 +80,7 @@ async function cargarUsuarios() {
                                     onclick="toggleActivo(${usuario.id}, ${usuario.activo})">
                                 ${usuario.activo ? 'Desactivar' : 'Activar'}
                             </button>
-                        ` : '<small style="color: var(--color-gris-oscuro);">(Usuario actual)</small>'}
+                        ` : '<small style="color: #666;">(Usuario actual)</small>'}
                     </td>
                 </tr>
             `).join('');
@@ -70,7 +92,7 @@ async function cargarUsuarios() {
     } catch (error) {
         document.getElementById('loadingUsuarios').classList.add('hidden');
         document.getElementById('noUsuarios').classList.remove('hidden');
-        console.error('Error al cargar usuarios:', error);
+        console.error('❌ Error al cargar usuarios:', error);
     }
 }
 
@@ -89,14 +111,14 @@ async function editarUsuario(id) {
     document.getElementById('tituloModalUsuario').textContent = 'Editar Usuario';
     
     try {
-        const response = await fetchAPI(`/usuarios/${id}`);
+        const response = await fetchAPI(`/api/usuarios/${id}`);
         
         if (response.success) {
             const usuario = response.data.usuario;
             
             document.getElementById('usuarioId').value = usuario.id;
-            document.getElementById('usuarioNombreCompleto').value = usuario.nombre_completo;
-            document.getElementById('usuarioNombre').value = usuario.usuario;
+            document.getElementById('usuarioNombre').value = usuario.nombre;
+            document.getElementById('usuarioEmail').value = usuario.email;
             document.getElementById('usuarioRol').value = usuario.rol;
             
             // Ocultar campo de contraseña al editar
@@ -106,37 +128,44 @@ async function editarUsuario(id) {
             
             document.getElementById('modalUsuario').style.display = 'block';
         } else {
-            mostrarAlerta('Error al cargar usuario', 'error');
+            mostrarMensaje('Error al cargar usuario', 'error');
         }
         
     } catch (error) {
-        mostrarAlerta('Error de conexión', 'error');
-        console.error('Error al editar usuario:', error);
+        mostrarMensaje('Error de conexión', 'error');
+        console.error('❌ Error al editar usuario:', error);
     }
 }
 
 async function guardarUsuario() {
     const id = document.getElementById('usuarioId').value;
-    const nombreCompleto = document.getElementById('usuarioNombreCompleto').value.trim();
-    const usuario = document.getElementById('usuarioNombre').value.trim();
+    const nombre = document.getElementById('usuarioNombre').value.trim();
+    const email = document.getElementById('usuarioEmail').value.trim();
     const password = document.getElementById('usuarioPassword').value;
     const rol = document.getElementById('usuarioRol').value;
 
-    if (!nombreCompleto || !usuario || !rol) {
-        mostrarAlerta('Complete todos los campos requeridos', 'error');
+    if (!nombre || !email || !rol) {
+        mostrarMensaje('Complete todos los campos requeridos', 'error');
+        return;
+    }
+
+    // Validar email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        mostrarMensaje('Email inválido', 'error');
         return;
     }
 
     // Validar contraseña solo al crear
     if (!id && (!password || password.length < 6)) {
-        mostrarAlerta('La contraseña debe tener al menos 6 caracteres', 'error');
+        mostrarMensaje('La contraseña debe tener al menos 6 caracteres', 'error');
         return;
     }
 
     const data = {
-        nombre_completo: nombreCompleto,
-        usuario: usuario,
-        rol: rol
+        nombre,
+        email,
+        rol
     };
 
     // Solo incluir password al crear
@@ -149,55 +178,60 @@ async function guardarUsuario() {
         
         if (id) {
             // Actualizar
-            response = await fetchAPI(`/usuarios/${id}`, {
+            response = await fetchAPI(`/api/usuarios/${id}`, {
                 method: 'PUT',
                 body: JSON.stringify(data)
             });
         } else {
             // Crear
-            response = await fetchAPI('/usuarios', {
+            response = await fetchAPI('/api/usuarios', {
                 method: 'POST',
                 body: JSON.stringify(data)
             });
         }
 
         if (response.success) {
-            mostrarAlerta(id ? 'Usuario actualizado exitosamente' : 'Usuario creado exitosamente', 'success');
+            mostrarMensaje(id ? 'Usuario actualizado exitosamente' : 'Usuario creado exitosamente', 'success');
             cerrarModal('modalUsuario');
             cargarUsuarios();
         } else {
-            mostrarAlerta(response.data.error || 'Error al guardar usuario', 'error');
+            mostrarMensaje(response.data.error || 'Error al guardar usuario', 'error');
         }
 
     } catch (error) {
-        mostrarAlerta('Error de conexión', 'error');
-        console.error('Error al guardar usuario:', error);
+        mostrarMensaje('Error de conexión', 'error');
+        console.error('❌ Error al guardar usuario:', error);
     }
 }
 
 async function toggleActivo(id, estadoActual) {
     const accion = estadoActual ? 'desactivar' : 'activar';
     
-    if (!confirmar(`¿Está seguro de ${accion} este usuario?`)) return;
+    if (!confirm(`¿Está seguro de ${accion} este usuario?`)) return;
 
     try {
-        const response = await fetchAPI(`/usuarios/${id}/toggle-activo`, {
+        const response = await fetchAPI(`/api/usuarios/${id}/toggle-activo`, {
             method: 'PATCH'
         });
 
         if (response.success) {
-            mostrarAlerta(`Usuario ${accion}do exitosamente`, 'success');
+            mostrarMensaje(`Usuario ${accion}do exitosamente`, 'success');
             cargarUsuarios();
         } else {
-            mostrarAlerta(response.data.error || 'Error al cambiar estado', 'error');
+            mostrarMensaje(response.data.error || 'Error al cambiar estado', 'error');
         }
 
     } catch (error) {
-        mostrarAlerta('Error de conexión', 'error');
-        console.error('Error al cambiar estado:', error);
+        mostrarMensaje('Error de conexión', 'error');
+        console.error('❌ Error al cambiar estado:', error);
     }
 }
 
 function cerrarModal(modalId) {
     document.getElementById(modalId).style.display = 'none';
+}
+
+function formatearFecha(fecha) {
+    const date = new Date(fecha);
+    return date.toLocaleDateString('es-BO');
 }

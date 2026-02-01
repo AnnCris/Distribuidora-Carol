@@ -2,14 +2,25 @@ let paginaActual = 1;
 let clienteActualId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    if (!verificarAuth()) {
-        window.location.href = 'login.html';
+    console.log('📄 Clientes cargado');
+
+    // PRIMERO: Verificar autenticación
+    const autenticado = await verificarAuth();
+    if (!autenticado) {
+        console.log('❌ No autenticado');
         return;
     }
 
+    console.log('✅ Autenticado, cargando clientes...');
+
+    // Cargar información del usuario
     cargarInfoUsuario();
-    await cargarClientes();
-    await cargarZonas();
+
+    // Cargar datos iniciales
+    await Promise.all([
+        cargarClientes(),
+        cargarZonas()
+    ]);
 
     // Filtros
     document.getElementById('buscar').addEventListener('input', debounce(cargarClientes, 500));
@@ -35,6 +46,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 });
 
+function cargarInfoUsuario() {
+    const usuario = getUsuario();
+    if (usuario) {
+        document.getElementById('userName').textContent = usuario.nombre;
+        document.getElementById('userRole').textContent = usuario.rol === 'admin' ? 'Administrador' : 'Vendedor';
+        document.getElementById('userAvatar').textContent = usuario.nombre.charAt(0).toUpperCase();
+
+        const menuUsuarios = document.getElementById('menuUsuarios');
+        if (usuario.rol !== 'admin') {
+            menuUsuarios.style.display = 'none';
+        }
+    }
+}
+
 async function cargarClientes() {
     try {
         document.getElementById('loadingClientes').classList.remove('hidden');
@@ -45,7 +70,7 @@ async function cargarClientes() {
         const activo = document.getElementById('filtroActivo').value;
         const zona = document.getElementById('filtroZona').value;
 
-        let url = `/clientes?page=${paginaActual}&per_page=20`;
+        let url = `/api/clientes?page=${paginaActual}&per_page=20`;
         if (buscar) url += `&buscar=${buscar}`;
         if (activo) url += `&activo=${activo}`;
         if (zona) url += `&zona=${zona}`;
@@ -54,7 +79,7 @@ async function cargarClientes() {
 
         document.getElementById('loadingClientes').classList.add('hidden');
 
-        if (response.success && response.data.clientes.length > 0) {
+        if (response.success && response.data.clientes && response.data.clientes.length > 0) {
             document.getElementById('tablaClientes').classList.remove('hidden');
             document.getElementById('paginacion').classList.remove('hidden');
 
@@ -79,7 +104,6 @@ async function cargarClientes() {
                 </tr>
             `).join('');
 
-            // Actualizar paginación
             document.getElementById('infoPagina').textContent = 
                 `Página ${response.data.pagina_actual} de ${response.data.total_paginas}`;
             
@@ -94,13 +118,13 @@ async function cargarClientes() {
     } catch (error) {
         document.getElementById('loadingClientes').classList.add('hidden');
         document.getElementById('noClientes').classList.remove('hidden');
-        console.error('Error al cargar clientes:', error);
+        console.error('❌ Error al cargar clientes:', error);
     }
 }
 
 async function cargarZonas() {
     try {
-        const response = await fetchAPI('/clientes/zonas');
+        const response = await fetchAPI('/api/clientes/zonas');
         if (response.success) {
             const selectZona = document.getElementById('filtroZona');
             const datalist = document.getElementById('zonasDatalist');
@@ -110,7 +134,7 @@ async function cargarZonas() {
             datalist.innerHTML = response.data.zonas.map(z => `<option value="${z}">`).join('');
         }
     } catch (error) {
-        console.error('Error al cargar zonas:', error);
+        console.error('❌ Error al cargar zonas:', error);
     }
 }
 
@@ -128,7 +152,7 @@ async function editarCliente(id) {
     document.getElementById('tituloModalCliente').textContent = 'Editar Cliente';
     
     try {
-        const response = await fetchAPI(`/clientes/${id}`);
+        const response = await fetchAPI(`/api/clientes/${id}`);
         
         if (response.success) {
             const cliente = response.data.cliente;
@@ -142,12 +166,12 @@ async function editarCliente(id) {
             
             document.getElementById('modalCliente').style.display = 'block';
         } else {
-            mostrarAlerta('Error al cargar cliente', 'error');
+            mostrarMensaje('Error al cargar cliente', 'error');
         }
         
     } catch (error) {
-        mostrarAlerta('Error de conexión', 'error');
-        console.error('Error al editar cliente:', error);
+        mostrarMensaje('Error de conexión', 'error');
+        console.error('❌ Error al editar cliente:', error);
     }
 }
 
@@ -160,13 +184,13 @@ async function guardarCliente() {
     const ciudad = document.getElementById('clienteCiudad').value.trim();
 
     if (!nombre) {
-        mostrarAlerta('El nombre es requerido', 'error');
+        mostrarMensaje('El nombre es requerido', 'error');
         return;
     }
 
     // Validar celular si se proporciona
     if (celular && !/^[67]\d{7}$/.test(celular)) {
-        mostrarAlerta('El celular debe tener 8 dígitos y empezar con 6 o 7', 'error');
+        mostrarMensaje('El celular debe tener 8 dígitos y empezar con 6 o 7', 'error');
         return;
     }
 
@@ -183,30 +207,30 @@ async function guardarCliente() {
         
         if (id) {
             // Actualizar
-            response = await fetchAPI(`/clientes/${id}`, {
+            response = await fetchAPI(`/api/clientes/${id}`, {
                 method: 'PUT',
                 body: JSON.stringify(data)
             });
         } else {
             // Crear
-            response = await fetchAPI('/clientes', {
+            response = await fetchAPI('/api/clientes', {
                 method: 'POST',
                 body: JSON.stringify(data)
             });
         }
 
         if (response.success) {
-            mostrarAlerta(id ? 'Cliente actualizado exitosamente' : 'Cliente creado exitosamente', 'success');
+            mostrarMensaje(id ? 'Cliente actualizado exitosamente' : 'Cliente creado exitosamente', 'success');
             cerrarModal('modalCliente');
             cargarClientes();
-            if (!id) cargarZonas(); // Recargar zonas si es nuevo
+            if (!id) cargarZonas();
         } else {
-            mostrarAlerta(response.data.error || 'Error al guardar cliente', 'error');
+            mostrarMensaje(response.data.error || 'Error al guardar cliente', 'error');
         }
 
     } catch (error) {
-        mostrarAlerta('Error de conexión', 'error');
-        console.error('Error al guardar cliente:', error);
+        mostrarMensaje('Error de conexión', 'error');
+        console.error('❌ Error al guardar cliente:', error);
     }
 }
 
@@ -215,7 +239,7 @@ async function verCliente(id) {
     document.getElementById('contenidoVerCliente').innerHTML = '<div class="spinner"></div>';
 
     try {
-        const response = await fetchAPI(`/clientes/${id}`);
+        const response = await fetchAPI(`/api/clientes/${id}`);
 
         if (response.success) {
             const cliente = response.data.cliente;
@@ -225,7 +249,7 @@ async function verCliente(id) {
             
             let html = `
                 <div style="margin-bottom: 20px;">
-                    <h3 style="color: var(--color-celeste); margin-bottom: 10px;">Información General</h3>
+                    <h3 style="color: #3b82f6; margin-bottom: 10px;">Información General</h3>
                     <p><strong>Nombre:</strong> ${cliente.nombre}</p>
                     <p><strong>Celular:</strong> ${cliente.celular || 'No registrado'}</p>
                     <p><strong>Dirección:</strong> ${cliente.direccion || 'No registrada'}</p>
@@ -234,29 +258,29 @@ async function verCliente(id) {
                     <p><strong>Estado:</strong> <span class="badge badge-${cliente.activo ? 'activo' : 'inactivo'}">
                         ${cliente.activo ? 'ACTIVO' : 'INACTIVO'}
                     </span></p>
-                    <p><strong>Fecha de Registro:</strong> ${cliente.fecha_registro}</p>
+                    <p><strong>Fecha de Registro:</strong> ${formatearFecha(cliente.fecha_registro)}</p>
                 </div>
 
                 <div style="margin-bottom: 20px;">
-                    <h3 style="color: var(--color-celeste); margin-bottom: 10px;">Estadísticas</h3>
+                    <h3 style="color: #3b82f6; margin-bottom: 10px;">Estadísticas</h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
-                        <div style="background: var(--color-gris); padding: 15px; border-radius: var(--border-radius-small); text-align: center;">
-                            <p style="font-size: 24px; font-weight: bold; color: var(--color-celeste);">${stats.total_pedidos}</p>
+                        <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; text-align: center;">
+                            <p style="font-size: 24px; font-weight: bold; color: #3b82f6;">${stats.total_pedidos}</p>
                             <p style="font-size: 14px;">Pedidos</p>
                         </div>
-                        <div style="background: var(--color-gris); padding: 15px; border-radius: var(--border-radius-small); text-align: center;">
-                            <p style="font-size: 24px; font-weight: bold; color: var(--color-rojo);">${stats.total_devoluciones}</p>
+                        <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; text-align: center;">
+                            <p style="font-size: 24px; font-weight: bold; color: #ef4444;">${stats.total_devoluciones}</p>
                             <p style="font-size: 14px;">Devoluciones</p>
                         </div>
-                        <div style="background: var(--color-gris); padding: 15px; border-radius: var(--border-radius-small); text-align: center;">
-                            <p style="font-size: 24px; font-weight: bold; color: var(--color-exito);">Bs. ${formatearPrecio(stats.total_vendido)}</p>
+                        <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; text-align: center;">
+                            <p style="font-size: 24px; font-weight: bold; color: #10b981;">Bs. ${formatearPrecio(stats.total_vendido)}</p>
                             <p style="font-size: 14px;">Total Vendido</p>
                         </div>
                     </div>
                 </div>
 
                 <div style="margin-bottom: 20px;">
-                    <h3 style="color: var(--color-celeste); margin-bottom: 10px;">Último Pedido</h3>
+                    <h3 style="color: #3b82f6; margin-bottom: 10px;">Último Pedido</h3>
                     ${stats.ultimo_pedido ? `
                         <p><strong>N° Pedido:</strong> ${stats.ultimo_pedido.numero_pedido}</p>
                         <p><strong>Fecha:</strong> ${formatearFecha(stats.ultimo_pedido.fecha_pedido)}</p>
@@ -284,30 +308,30 @@ async function verCliente(id) {
     } catch (error) {
         document.getElementById('contenidoVerCliente').innerHTML = 
             '<p class="text-center">Error de conexión</p>';
-        console.error('Error al ver cliente:', error);
+        console.error('❌ Error al ver cliente:', error);
     }
 }
 
 async function toggleActivo(id, estadoActual) {
     const accion = estadoActual ? 'desactivar' : 'activar';
     
-    if (!confirmar(`¿Está seguro de ${accion} este cliente?`)) return;
+    if (!confirm(`¿Está seguro de ${accion} este cliente?`)) return;
 
     try {
-        const response = await fetchAPI(`/clientes/${id}/toggle-activo`, {
+        const response = await fetchAPI(`/api/clientes/${id}/toggle-activo`, {
             method: 'PATCH'
         });
 
         if (response.success) {
-            mostrarAlerta(`Cliente ${accion}do exitosamente`, 'success');
+            mostrarMensaje(`Cliente ${accion}do exitosamente`, 'success');
             cargarClientes();
         } else {
-            mostrarAlerta(response.data.error || 'Error al cambiar estado', 'error');
+            mostrarMensaje(response.data.error || 'Error al cambiar estado', 'error');
         }
 
     } catch (error) {
-        mostrarAlerta('Error de conexión', 'error');
-        console.error('Error al cambiar estado:', error);
+        mostrarMensaje('Error de conexión', 'error');
+        console.error('❌ Error al cambiar estado:', error);
     }
 }
 
@@ -325,4 +349,25 @@ function limpiarFiltros() {
     document.getElementById('filtroZona').value = '';
     paginaActual = 1;
     cargarClientes();
+}
+
+function formatearFecha(fecha) {
+    const date = new Date(fecha);
+    return date.toLocaleDateString('es-BO');
+}
+
+function formatearPrecio(precio) {
+    return parseFloat(precio).toFixed(2);
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
 }
