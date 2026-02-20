@@ -192,7 +192,7 @@ function cerrarModal(modalId) {
 
 function agregarProducto() {
     const productoId = document.getElementById('productoSelect').value;
-    const cantidad = parseFloat(document.getElementById('productoCantidad').value);
+    const cantidad = parseInt(document.getElementById('productoCantidad').value); // CAMBIO: parseInt
     const precio = parseFloat(document.getElementById('productoPrecio').value);
 
     if (!productoId || !cantidad || cantidad <= 0) {
@@ -214,7 +214,7 @@ function agregarProducto() {
         productosSeleccionados.push({
             producto_id: parseInt(productoId),
             nombre: producto.nombre,
-            cantidad: cantidad,
+            cantidad: cantidad, // Ya es entero
             precio_unitario: precio
         });
     }

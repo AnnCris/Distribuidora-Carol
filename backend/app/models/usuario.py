@@ -24,6 +24,11 @@ class Usuario(db.Model):
         """Verificar la contraseña"""
         return check_password_hash(self.password_hash, password)
     
+    @property
+    def nombre_completo(self):
+        """Alias para compatibilidad"""
+        return self.nombre
+
     def to_dict(self):
         """Convertir a diccionario"""
         return {

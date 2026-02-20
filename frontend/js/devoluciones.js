@@ -190,7 +190,7 @@ function abrirModalNuevaDevolucion() {
 
 function agregarProductoDevolucion() {
     const productoId = document.getElementById('productoDevueltoSelect').value;
-    const cantidad = parseFloat(document.getElementById('productoCantidadDev').value);
+    const cantidad = parseInt(document.getElementById('productoCantidadDev').value); // CAMBIO
     const reemplazoId = document.getElementById('productoReemplazoSelect').value;
 
     if (!productoId || !cantidad || cantidad <= 0) {

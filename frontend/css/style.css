@@ -629,3 +629,30 @@ tbody td {
 .mb-20 { margin-bottom: 20px; }
 .mt-20 { margin-top: 20px; }
 .hidden { display: none; }
+
+
+/* FIX: Modales con contenido largo */
+.modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-body {
+    overflow-y: auto;
+    max-height: calc(90vh - 180px); /* Restar header y footer */
+}
+
+.modal-footer {
+    position: sticky;
+    bottom: 0;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+    padding: 15px 25px;
+    margin-top: auto;
+}
+
+.modal-footer .btn {
+    width: 0 5px;
+}
