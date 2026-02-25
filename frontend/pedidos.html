@@ -85,6 +85,9 @@
             <div class="topbar">
                 <h1>Gestión de Pedidos</h1>
                 <div class="topbar-actions">
+                    <button class="btn btn-secondary" onclick="generarListaDia()">
+                        📋 Lista del Día
+                    </button>
                     <button class="btn btn-primary" onclick="abrirModalNuevoPedido()">
                         + Nuevo Pedido
                     </button>
@@ -198,27 +201,55 @@
 
                     <h3 style="color: var(--color-celeste); margin-bottom: 15px;">Productos</h3>
 
-                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px;">
-                        <div class="form-group">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: end;">
+                        <div class="form-group" style="margin-bottom:0">
                             <label>Producto</label>
                             <select id="productoSelect" class="form-control">
                                 <option value="">Seleccione producto</option>
                             </select>
                         </div>
-                        <div class="form-group">
+
+                        <!-- Cantidad normal (no-kg) -->
+                        <div class="form-group" id="filaCantidadNormal" style="margin-bottom:0">
                             <label>Cantidad</label>
-                            <input type="number" id="productoCantidad" class="form-control" min="1" step="1" placeholder="1, 2, 3...">
+                            <input type="number" id="productoCantidad" class="form-control" 
+                                min="1" step="1" placeholder="1, 2, 3...">
                         </div>
-                        <div class="form-group">
+
+                        <!-- Peso en kg (solo para productos kg) -->
+                        <div class="form-group" id="filaPesoKg" style="margin-bottom:0; display:none;">
+                            <label>Peso (kg)</label>
+                            <input type="number" id="productoPeso" class="form-control" 
+                                min="0.001" step="0.001" placeholder="Ej: 3.450">
+                        </div>
+
+                        <div class="form-group" style="margin-bottom:0">
                             <label>Precio</label>
-                            <input type="number" id="productoPrecio" class="form-control" min="0.01" step="0.01" readonly>
+                            <input type="number" id="productoPrecio" class="form-control" 
+                                min="0.01" step="0.01" readonly>
                         </div>
-                        <div class="form-group">
+
+                        <div class="form-group" style="margin-bottom:0">
                             <label>&nbsp;</label>
                             <button type="button" class="btn btn-primary" onclick="agregarProducto()">
                                 Agregar
                             </button>
                         </div>
+                    </div>
+
+                    <div id="productoSubtotalPreview" style="
+                        display: none;
+                        text-align: right;
+                        color: #10b981;
+                        font-weight: bold;
+                        font-size: 14px;
+                        margin-bottom: 10px;
+                        padding: 6px 10px;
+                        background: #f0fdf4;
+                        border-radius: 6px;
+                        border: 1px solid #bbf7d0;
+                    ">
+                        Subtotal: Bs. 0.00
                     </div>
 
                     <table style="margin-top: 20px;">
@@ -277,8 +308,35 @@
                 <button type="button" class="btn btn-secondary" onclick="cerrarModal('modalVerPedido')">
                     Cerrar
                 </button>
+                 <button type="button" class="btn btn-secondary" id="btnImprimirPedido" onclick="imprimirPedido()">
+                    🖨️ Imprimir
+                </button>
                 <button type="button" class="btn btn-primary" id="btnDescargarPDF">
-                    Descargar PDF
+                    📄 Descargar PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Lista del Día -->
+    <div id="modalListaDia" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header" style="background: #2c3e50;">
+                <h2>📋 Lista de Pedidos del Día</h2>
+                <span class="close" onclick="cerrarModal('modalListaDia')">&times;</span>
+            </div>
+            <div class="modal-body" id="contenidoListaDia">
+                <div class="spinner"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal('modalListaDia')">
+                    Cerrar
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="imprimirListaDia()">
+                    🖨️ Imprimir Lista
+                </button>
+                <button type="button" class="btn btn-primary" onclick="descargarPDFListaDia()">
+                    📄 Descargar PDF
                 </button>
             </div>
         </div>

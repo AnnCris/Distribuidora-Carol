@@ -105,56 +105,50 @@ def obtener_pedido(id):
 @pedidos_bp.route('/', methods=['POST'])
 @login_required
 def crear_pedido():
-    """Crear un nuevo pedido con cálculo automático"""
     try:
         user_id = session.get('user_id')
         data = request.get_json()
-        
+
         if not data or not data.get('cliente_id') or not data.get('detalles'):
             return jsonify({'error': 'Cliente y detalles son requeridos'}), 400
-        
-        # Validar que el cliente existe
+
         cliente = Cliente.query.get(data['cliente_id'])
         if not cliente:
             return jsonify({'error': 'Cliente no encontrado'}), 404
-        
         if not cliente.activo:
             return jsonify({'error': 'El cliente está desactivado'}), 400
-        
-        # Validar que hay detalles
+
         if not data['detalles'] or len(data['detalles']) == 0:
             return jsonify({'error': 'Debe agregar al menos un producto al pedido'}), 400
-        
-        # Generar número de pedido
+
         numero_pedido = Pedido.generar_numero_pedido()
-        
-        # Crear pedido
+        descuento = float(data.get('descuento', 0))
+
         nuevo_pedido = Pedido(
             numero_pedido=numero_pedido,
             cliente_id=data['cliente_id'],
             usuario_id=user_id,
-            descuento=data.get('descuento', 0),
+            descuento=descuento,
             observaciones=data.get('observaciones'),
             fecha_entrega=datetime.strptime(data['fecha_entrega'], '%Y-%m-%d').date() if data.get('fecha_entrega') else None,
+            subtotal=0,
             total=0
         )
-        
+
         db.session.add(nuevo_pedido)
         db.session.flush()
-        
-        # Agregar detalles y calcular totales
+
+        subtotal_acumulado = 0.0
+
         for detalle_data in data['detalles']:
-            # Validar producto
             producto = Producto.query.get(detalle_data['producto_id'])
             if not producto:
                 db.session.rollback()
                 return jsonify({'error': f'Producto con ID {detalle_data["producto_id"]} no encontrado'}), 404
-            
             if not producto.activo:
                 db.session.rollback()
                 return jsonify({'error': f'El producto {producto.nombre} está desactivado'}), 400
-            
-            # Validar cantidad
+
             try:
                 cantidad = float(detalle_data['cantidad'])
                 if cantidad <= 0:
@@ -162,44 +156,39 @@ def crear_pedido():
             except:
                 db.session.rollback()
                 return jsonify({'error': 'La cantidad debe ser mayor a 0'}), 400
-            
-            # Usar precio del producto si no se especifica
-            precio_unitario = detalle_data.get('precio_unitario', producto.precio_venta)
-            
-            # Crear detalle
+
+            precio_unitario = float(detalle_data.get('precio_unitario', producto.precio_venta))
+            subtotal_detalle = cantidad * precio_unitario
+
             detalle = DetallePedido(
                 pedido_id=nuevo_pedido.id,
                 producto_id=producto.id,
                 cantidad=cantidad,
                 precio_unitario=precio_unitario,
-                subtotal=0
+                subtotal=subtotal_detalle
             )
-            
-            detalle.calcular_subtotal()
             db.session.add(detalle)
-            
-            # Actualizar stock del producto
+
+            subtotal_acumulado += subtotal_detalle
             producto.actualizar_stock(int(cantidad), 'restar')
-        
-        # Calcular totales del pedido
-        nuevo_pedido.calcular_totales()
-        
+
+        nuevo_pedido.subtotal = subtotal_acumulado
+        nuevo_pedido.total = subtotal_acumulado - descuento
+
         db.session.commit()
-        
+
         return jsonify({
             'mensaje': 'Pedido creado exitosamente',
             'pedido': nuevo_pedido.to_dict(include_detalles=True)
         }), 201
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al crear pedido: {str(e)}'}), 500
 
-
 @pedidos_bp.route('/<int:id>', methods=['PUT'])
 @login_required
 def actualizar_pedido(id):
-    """Actualizar un pedido (solo si está pendiente)"""
     try:
         pedido = Pedido.query.get(id)
         
@@ -211,27 +200,28 @@ def actualizar_pedido(id):
         
         data = request.get_json()
         
-        # Actualizar campos básicos
         if 'observaciones' in data:
             pedido.observaciones = data['observaciones']
         
         if 'fecha_entrega' in data:
             pedido.fecha_entrega = datetime.strptime(data['fecha_entrega'], '%Y-%m-%d').date() if data['fecha_entrega'] else None
         
-        if 'descuento' in data:
-            pedido.descuento = data['descuento']
-        
-        # Si se actualizan los detalles
+        descuento = float(data.get('descuento', pedido.descuento))
+        pedido.descuento = descuento
+
         if 'detalles' in data:
-            # Restaurar stock de productos eliminados
+            # Restaurar stock de productos anteriores
             for detalle in pedido.detalles:
                 producto = Producto.query.get(detalle.producto_id)
-                producto.actualizar_stock(int(detalle.cantidad), 'sumar')
+                if producto:
+                    producto.actualizar_stock(int(detalle.cantidad), 'sumar')
             
             # Eliminar detalles antiguos
             DetallePedido.query.filter_by(pedido_id=id).delete()
-            
-            # Agregar nuevos detalles
+            db.session.flush()
+
+            subtotal_acumulado = 0.0
+
             for detalle_data in data['detalles']:
                 producto = Producto.query.get(detalle_data['producto_id'])
                 if not producto:
@@ -242,24 +232,26 @@ def actualizar_pedido(id):
                     db.session.rollback()
                     return jsonify({'error': f'El producto {producto.nombre} está desactivado'}), 400
                 
-                precio_unitario = detalle_data.get('precio_unitario', producto.precio_venta)
-                
+                cantidad = float(detalle_data['cantidad'])
+                precio_unitario = float(detalle_data.get('precio_unitario', producto.precio_venta))
+                subtotal_detalle = cantidad * precio_unitario
+
                 detalle = DetallePedido(
                     pedido_id=pedido.id,
                     producto_id=producto.id,
-                    cantidad=detalle_data['cantidad'],
+                    cantidad=cantidad,
                     precio_unitario=precio_unitario,
-                    subtotal=0
+                    subtotal=subtotal_detalle
                 )
-                detalle.calcular_subtotal()
                 db.session.add(detalle)
-                
-                # Actualizar stock
-                producto.actualizar_stock(int(detalle_data['cantidad']), 'restar')
-            
-            # Recalcular totales
-            pedido.calcular_totales()
-        
+
+                subtotal_acumulado += subtotal_detalle
+                producto.actualizar_stock(int(cantidad), 'restar')
+
+            # Asignar totales directamente
+            pedido.subtotal = subtotal_acumulado
+            pedido.total = subtotal_acumulado - descuento
+
         db.session.commit()
         
         return jsonify({
@@ -270,7 +262,6 @@ def actualizar_pedido(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al actualizar pedido: {str(e)}'}), 500
-
 
 @pedidos_bp.route('/<int:id>/cambiar-estado', methods=['PATCH'])
 @login_required
